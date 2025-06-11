@@ -181,15 +181,16 @@ Button= Pin(0, Pin.IN, Pin.PULL_UP)
 while True:
     
 
-    if Button.value() == 1:  # Button is pressed (active low)
+    if Button.value() == 0:  # Button is pressed (active low)
         sleep(0.1)  # Debounce: wait to avoid repeated triggers
         print("1")
-        Volume = fm_radio.Volume
-        Volume = Volume + 1
+        Volume = fm_radio.Volume +1
+        
 
         if fm_radio.SetVolume(Volume) == True:
             fm_radio.ProgramRadio()
-
+    while Button.value() == 0:
+        sleep(0.05)     
 # while ( True ):
 
 # #
