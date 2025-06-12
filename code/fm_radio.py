@@ -178,103 +178,112 @@ class Radio:
 #
 fm_radio = Radio( 101.9, 2, False )
 Button= Pin(0, Pin.IN, Pin.PULL_UP)
-while True:
+
+# while True:
     
 
-    if Button.value() == 0:  # Button is pressed (active low)
-        sleep(0.1)  # Debounce: wait to avoid repeated triggers
-        print("1")
-        Volume = fm_radio.Volume +1
+#     if Button.value() == 0:  # Button is pressed (active low)
+#         sleep(0.1)  # Debounce: wait to avoid repeated triggers
+#         print("1")
+#         Volume = fm_radio.Volume -1
         
 
-        if fm_radio.SetVolume(Volume) == True:
-            fm_radio.ProgramRadio()
-    while Button.value() == 0:
-        sleep(0.05)     
-# while ( True ):
-
-# #
-# # display the menu
-# #
-    
-#     print("")
-#     print( "ECE 299 FM Radio Demo Menu" );
-#     print("")
-#     print( "1 - change radio frequency" )
-#     print( "2 - change volume level" )
-#     print( "3 - mute audio" )
-#     print( "4 - read current settings" )
-    
-
-
-#     select = input( "Enter menu number > " )
-
-# #
-# # Set radio frequency
-# #
-#     if ( select == "1" ):
-#         Frequency = input( "Enter frequncy in Mhz ( IE 100.3 ) > " )
-
-#         if ( fm_radio.SetFrequency( Frequency ) == True ):
+#         if fm_radio.SetVolume(Volume) == True:
 #             fm_radio.ProgramRadio()
-#         else:
-#             print( "Invalid frequency( Range is 88.0 to 108.0 )" )
+#     while Button.value() == 0:
+#         sleep(0.05)     
+while ( True ):
+   
 
-# #
-# # Set volume level of radio
-# #
-#     elif ( select == "2" ):
-#         Volume=0
+#
+# display the menu
+#
+    
+    print("")
+    print( "ECE 299 FM Radio Demo Menu" );
+    print("")
+    print( "1 - change radio frequency" )
+    print( "2 - change volume level" )
+    print( "3 - mute audio" )
+    print( "4 - read current settings" )
+    
+
+
+    select = input( "Enter menu number > " )
+
+#
+# Set radio frequency
+#
+    if ( select == "1" ):
+        Frequency = input( "Enter frequncy in Mhz ( IE 100.3 ) > " )
+
+        if ( fm_radio.SetFrequency( Frequency ) == True ):
+            fm_radio.ProgramRadio()
+        else:
+            print( "Invalid frequency( Range is 88.0 to 108.0 )" )
+
+#
+# Set volume level of radio
+#
+    elif ( select == "2" ):
+        while True:
+            if Button.value()==0:
+                sleep(0.1)  # Debounce: wait to avoid repeated triggers
+                print("1")
+                Volume = fm_radio.Volume +1
+                break
+
+            
         
         
         
                 
-#         if ( fm_radio.SetVolume( Volume ) == True ):
-#             fm_radio.ProgramRadio()
-#         else:
-#             print( "Invalid volume level( Range is 0 to 15 )" )
+        if ( fm_radio.SetVolume( Volume ) == True ):
+            fm_radio.ProgramRadio()
+        else:
+            print( "Invalid volume level( Range is 0 to 15 )" )
         
-# #        
-# # Enable mute of radio       
-# #        
-#     elif( select == "3" ):
-#         Mute = input( "Enter mute ( 1 for Mute, 0 for audio ) > " )
+#        
+# Enable mute of radio       
+#        
+    elif( select == "3" ):
+        Mute = input( "Enter mute ( 1 for Mute, 0 for audio ) > " )
         
-#         if ( fm_radio.SetMute( Mute ) == True ):
-#             fm_radio.ProgramRadio()
-#         else:
-#             print( "Invalid mute setting" )
+        if ( fm_radio.SetMute( Mute ) == True ):
+            fm_radio.ProgramRadio()
+        else:
+            print( "Invalid mute setting" )
 
-# #
-# # Display radio current settings
-# #
-#     elif( select == "4" ):
-#         Settings = fm_radio.GetSettings()
+#
+# Display radio current settings
+#
+    elif( select == "4" ):
+        Settings = fm_radio.GetSettings()
 
-#         print( Settings )
-#         print("")
-#         print("Radio Status")
-#         print("")
+        print( Settings )
+        print("")
+        print("Radio Status")
+        print("")
 
-#         print( "Mute: ", end="" )
-#         if ( Settings[0] == True ):
-#             print( "enabled" )
-#         else:
-#             print( "disabled" )
+        print( "Mute: ", end="" )
+        if ( Settings[0] == True ):
+            print( "enabled" )
+        else:
+            print( "disabled" )
 
-#         print( "Volume: %d" % Settings[1] )
+        print( "Volume: %d" % Settings[1] )
 
-#         print( "Frequency: %5.1f" % Settings[2] )
+        print( "Frequency: %5.1f" % Settings[2] )
 
-#         print( "Mode: ", end="" )
-#         if ( Settings[3] == True ):
-#             print( "stereo" )
-#         else:
-#             print( "mono" )
+        print( "Mode: ", end="" )
+        if ( Settings[3] == True ):
+            print( "stereo" )
+        else:
+            print( "mono" )
 
 
-#     else:
-#         print( "Invalid menu option" )
+    else:
+        print( "Invalid menu option" )
    
 
         
