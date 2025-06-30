@@ -22,8 +22,8 @@ class Radio:
       
 # Initialize I/O pins associated with the radio's I2C interface
 
-        self.i2c_sda = Pin(26)
-        self.i2c_scl = Pin(27)
+        self.i2c_sda = Pin(15)
+        self.i2c_scl = Pin(14)
 
 #
 # I2C Device ID can be 0 or 1. It must match the wiring. 
