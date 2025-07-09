@@ -2360,7 +2360,90 @@
 			)
 			(embedded_fonts no)
 		)
-		(symbol "ECE:RPi_Pico_TH"
+		(symbol "Mechanical:MountingHole"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "H"
+				(at 0 5.08 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole"
+				(at 0 3.175 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Mounting Hole without connection"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "mounting hole"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "MountingHole*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "MountingHole_0_1"
+				(circle
+					(center 0 0)
+					(radius 1.27)
+					(stroke
+						(width 1.27)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "RPi_Pico_TH_1"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -2416,7 +2499,7 @@
 					(hide yes)
 				)
 			)
-			(symbol "RPi_Pico_TH_0_1"
+			(symbol "RPi_Pico_TH_1_0_1"
 				(rectangle
 					(start -15.24 24.13)
 					(end 15.24 -24.13)
@@ -2429,7 +2512,7 @@
 					)
 				)
 			)
-			(symbol "RPi_Pico_TH_1_1"
+			(symbol "RPi_Pico_TH_1_1_1"
 				(pin bidirectional line
 					(at -17.78 19.05 0)
 					(length 2.54)
@@ -3166,89 +3249,6 @@
 								(size 1.27 1.27)
 							)
 						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Mechanical:MountingHole"
-			(pin_names
-				(offset 1.016)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "H"
-				(at 0 5.08 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "MountingHole"
-				(at 0 3.175 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Datasheet" "~"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "Description" "Mounting Hole without connection"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_keywords" "mounting hole"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(property "ki_fp_filters" "MountingHole*"
-				(at 0 0 0)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-					(hide yes)
-				)
-			)
-			(symbol "MountingHole_0_1"
-				(circle
-					(center 0 0)
-					(radius 1.27)
-					(stroke
-						(width 1.27)
-						(type default)
-					)
-					(fill
-						(type none)
 					)
 				)
 			)
@@ -4996,7 +4996,7 @@
 	)
 	(wire
 		(pts
-			(xy 114.3 101.6) (xy 114.3 95.25)
+			(xy 114.3 95.25) (xy 114.3 101.6)
 		)
 		(stroke
 			(width 0)
@@ -9930,192 +9930,6 @@
 		)
 	)
 	(symbol
-		(lib_id "ECE:RPi_Pico_TH")
-		(at 45.72 59.69 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "5ff3a0d6-de5a-4baf-9c30-3313943dd8a2")
-		(property "Reference" "U1"
-			(at 52.9941 30.48 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "RPi_Pico_TH"
-			(at 52.9941 33.02 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Module:RaspberryPi_Pico_Common_THT"
-			(at 45.72 63.5 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 45.72 62.23 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" ""
-			(at 45.72 59.69 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "34"
-			(uuid "fc1cdea0-2084-410b-b11b-997c6f8061c6")
-		)
-		(pin "38"
-			(uuid "2a6e119c-0456-4b26-9167-6b1075d73de9")
-		)
-		(pin "2"
-			(uuid "21c69329-d1a8-40d1-965d-a2343268897a")
-		)
-		(pin "33"
-			(uuid "4d293fb3-04e2-42f3-a8e0-8557c992d025")
-		)
-		(pin "37"
-			(uuid "13508f1d-1caa-4c6f-8f0a-a0916da9dfaa")
-		)
-		(pin "22"
-			(uuid "afc275f2-7b08-492c-933c-b55ec54f1a2e")
-		)
-		(pin "21"
-			(uuid "c75cb517-0bc6-4d25-bb0f-cd9548c59659")
-		)
-		(pin "6"
-			(uuid "32296eee-8204-4344-8329-4fe42aabc919")
-		)
-		(pin "8"
-			(uuid "f7d885eb-0ce3-411f-8922-19820ad92d63")
-		)
-		(pin "27"
-			(uuid "ff3322d2-2474-42ce-8e8d-22c8c4bf17f8")
-		)
-		(pin "20"
-			(uuid "9271c562-2bfd-4750-a27c-b119d2653fe8")
-		)
-		(pin "11"
-			(uuid "d9518dc3-5870-4fa9-a568-a78971d58092")
-		)
-		(pin "25"
-			(uuid "b1b7628f-5a13-47c8-bcef-7c844e5b6135")
-		)
-		(pin "30"
-			(uuid "f4cf1cf3-2c23-41aa-b20b-9804b69f82f4")
-		)
-		(pin "9"
-			(uuid "793e37a3-4c89-458c-b8b4-2687a4dcbb7b")
-		)
-		(pin "32"
-			(uuid "c0395cf5-62c0-449e-aa13-03837991a484")
-		)
-		(pin "33"
-			(uuid "b6ec4600-ac8c-4afb-9780-fe0e1d087f7d")
-		)
-		(pin "35"
-			(uuid "30730647-ff50-4b83-abbc-cf83fd57adf0")
-		)
-		(pin "12"
-			(uuid "ee9eeda9-5828-4ee0-aa51-3b203b0f676d")
-		)
-		(pin "36"
-			(uuid "f4f400c6-5e50-462b-ade4-9be397a92c39")
-		)
-		(pin "31"
-			(uuid "807993da-e144-4e45-8880-6e5f02c010d5")
-		)
-		(pin "23"
-			(uuid "621cce44-4e61-49f6-a61b-4b805bf7a558")
-		)
-		(pin "28"
-			(uuid "2c4e76d5-757f-4fa0-ac01-a1da8dde5efa")
-		)
-		(pin "29"
-			(uuid "d11d8703-e66b-4c71-809c-10a85c135615")
-		)
-		(pin "5"
-			(uuid "89145718-1a2b-4a34-8569-0cd282a44f70")
-		)
-		(pin "16"
-			(uuid "9395dff8-083c-4e91-9749-eabbc3799c10")
-		)
-		(pin "13"
-			(uuid "cb0a565c-dafa-45f9-9d82-9b876453c5ec")
-		)
-		(pin "15"
-			(uuid "a5e9b9d9-c7bc-40ee-9647-579cdfbc1886")
-		)
-		(pin "39"
-			(uuid "256f9661-4657-4be3-9088-a1f1494d6f13")
-		)
-		(pin "4"
-			(uuid "736ed6c8-4243-4a88-ab1d-e702c01dbc91")
-		)
-		(pin "3"
-			(uuid "1cd06024-971d-4edb-8290-1dd1280aab0d")
-		)
-		(pin "40"
-			(uuid "ce9d5d7f-bb91-4318-b4b0-61e78e5dce78")
-		)
-		(pin "17"
-			(uuid "b5a418e1-2e5c-481e-a46a-569798a89351")
-		)
-		(pin "24"
-			(uuid "38c9faad-d5d7-41d3-b46d-094c5920b1fb")
-		)
-		(pin "26"
-			(uuid "f4747235-6a42-4e3e-ba09-564c7c9d9db8")
-		)
-		(pin "19"
-			(uuid "f5c7df40-2dd7-47d7-9525-797a37f9c1bf")
-		)
-		(pin "1"
-			(uuid "c6aaa567-9c97-4189-9a5c-f37ef3ea5ac5")
-		)
-		(pin "10"
-			(uuid "19a3e9a1-ce5f-46af-bdd3-71b7d378b9f1")
-		)
-		(pin "18"
-			(uuid "d37f04af-1fcf-439f-9eb9-76d0f0443644")
-		)
-		(pin "7"
-			(uuid "0f8fc3f8-2a6b-41fa-87e9-dfed4311a871")
-		)
-		(pin "14"
-			(uuid "0c069e1b-6386-4712-abce-76893244b650")
-		)
-		(instances
-			(project "pcb_schematics"
-				(path "/a6913523-cf8b-4e29-b403-fe0fb62af3ee"
-					(reference "U1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:C_Small")
 		(at 233.68 102.87 0)
 		(unit 1)
@@ -13013,6 +12827,194 @@
 			(project "pcb_schematics"
 				(path "/a6913523-cf8b-4e29-b403-fe0fb62af3ee"
 					(reference "TP15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_name "RPi_Pico_TH_1")
+		(lib_id "ECE:RPi_Pico_TH")
+		(at 45.72 59.69 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e6b66d5f-17cd-4e08-9118-f3fe59d4b565")
+		(property "Reference" "U5"
+			(at 52.9433 30.48 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "RPi_Pico_TH"
+			(at 52.9433 33.02 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "ECE:RPi_Pico_TH"
+			(at 45.72 63.5 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 45.72 62.23 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Description" "Raspberry Pi Pico"
+			(at 45.72 59.69 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "6"
+			(uuid "d35663e7-c4e3-4299-abc6-9c910fe9dc6a")
+		)
+		(pin "11"
+			(uuid "a7b2e178-3d73-4666-a761-e03330e151d8")
+		)
+		(pin "2"
+			(uuid "3d778c91-1e23-4a12-a5a2-ab29757b8990")
+		)
+		(pin "13"
+			(uuid "fe1264af-0cc4-42ff-ab7d-a458ab8f07f4")
+		)
+		(pin "19"
+			(uuid "b4d67271-69cc-48eb-ad3e-25912c40fa2c")
+		)
+		(pin "17"
+			(uuid "df34a794-e7ef-4fd4-9973-224869b06f31")
+		)
+		(pin "33"
+			(uuid "fcb9153a-ce57-4db9-93cd-bd7b44f86714")
+		)
+		(pin "5"
+			(uuid "9b985244-07d6-4e50-b920-ee7115a403ec")
+		)
+		(pin "7"
+			(uuid "3910c487-dfc5-46d5-9c2f-148ac448428d")
+		)
+		(pin "12"
+			(uuid "a4046181-1ee4-4f9d-b48b-2c4c1e9a51d5")
+		)
+		(pin "9"
+			(uuid "121318e4-77e0-4322-a1bc-e83ea63abce9")
+		)
+		(pin "14"
+			(uuid "9abffabf-9ee5-46cb-9a1a-f4af90d0ffe4")
+		)
+		(pin "16"
+			(uuid "3d9fb586-f80b-4315-ac0b-77f239478492")
+		)
+		(pin "20"
+			(uuid "b6119965-2b64-4cda-a639-3e7cd5de1223")
+		)
+		(pin "8"
+			(uuid "2c15a361-0658-45f1-a578-bff5f8928e42")
+		)
+		(pin "23"
+			(uuid "77d24d1b-5871-482a-8710-682e2e4ddccf")
+		)
+		(pin "28"
+			(uuid "d92aca99-d557-4721-a1f0-38dc2c4edd7d")
+		)
+		(pin "1"
+			(uuid "83dba295-d379-4929-9cdd-97001c1f53ff")
+		)
+		(pin "4"
+			(uuid "6c18a4b3-e972-4ea5-8564-80ccb0b6fa28")
+		)
+		(pin "10"
+			(uuid "dec86025-c083-4950-b820-ce6d4e4cb4d2")
+		)
+		(pin "15"
+			(uuid "d71bfbf6-da9e-4e25-8e2a-ba60951d88e8")
+		)
+		(pin "3"
+			(uuid "984ec0a5-835b-4185-9628-df796fbc341c")
+		)
+		(pin "40"
+			(uuid "d163d34e-6305-425b-ac06-efca7c51f683")
+		)
+		(pin "18"
+			(uuid "14f8e931-629f-493d-9011-10e7b9523519")
+		)
+		(pin "36"
+			(uuid "9240ed26-357f-4fab-8d03-a0ec6387310d")
+		)
+		(pin "39"
+			(uuid "ff964729-1be0-49c6-97b5-06092254fb65")
+		)
+		(pin "21"
+			(uuid "9ff51978-e2af-4f66-bdaa-803aa96b1421")
+		)
+		(pin "35"
+			(uuid "0d03a2f7-9415-4f8a-8a3d-6f566ab641f3")
+		)
+		(pin "29"
+			(uuid "69950f38-d68d-4eec-ba04-0847112d6701")
+		)
+		(pin "37"
+			(uuid "c4e520b4-5bff-4ff1-b354-aaa89ed1d7eb")
+		)
+		(pin "26"
+			(uuid "cd478749-b9a5-47c4-be08-577a567f935b")
+		)
+		(pin "31"
+			(uuid "2a769bba-8261-4667-8e3d-4298f9662d52")
+		)
+		(pin "25"
+			(uuid "d1257e7e-6f05-4167-a58f-b45edb2388d8")
+		)
+		(pin "33"
+			(uuid "8a13b49e-a5da-4698-ba23-e80790fe64b3")
+		)
+		(pin "38"
+			(uuid "6961cbb6-3c2b-4628-bca9-3f0d86c277e8")
+		)
+		(pin "24"
+			(uuid "2ed08ace-98f6-410c-a0f2-e0a7c9e74350")
+		)
+		(pin "32"
+			(uuid "eb9d74ef-c8e1-4229-8b5e-8fd901476c1c")
+		)
+		(pin "27"
+			(uuid "6dd5841b-f8b0-41ca-af64-08d9da9a79e3")
+		)
+		(pin "30"
+			(uuid "3d56a4ed-4e7b-42b6-8db5-7c260fd3bd7d")
+		)
+		(pin "34"
+			(uuid "7d759921-16ee-44f1-b987-b75c3e59f29c")
+		)
+		(pin "22"
+			(uuid "4a0dd134-22c0-4367-948d-f0b67e259c0f")
+		)
+		(instances
+			(project ""
+				(path "/a6913523-cf8b-4e29-b403-fe0fb62af3ee"
+					(reference "U5")
 					(unit 1)
 				)
 			)
