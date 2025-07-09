@@ -3484,7 +3484,7 @@
     (property "Value" "CUE_SJ1-352XNG" (at 248.92 146.05 0)
       (effects (font (size 1.016 1.016)) (justify right))
     )
-    (property "Footprint" "ECE:CUE_SJ1-352XNG" (at 234.95 147.32 0)
+    (property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical" (at 234.95 147.32 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "" (at 234.95 147.32 0)
