@@ -1,9 +1,9 @@
 import socket
 import json
 from typing import Any
-from resources import _lock
+from config.resources import _lock
 
-class Website:
+class WebServer:
 
     def __init__(self,json_filename:str, webpage_fname:str) -> None:
         self.__jfname=json_filename
