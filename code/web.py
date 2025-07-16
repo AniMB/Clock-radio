@@ -1,14 +1,30 @@
 import socket
+import json
+from typing import Any
+from resources import _lock
+
 class Website:
-    def __init__(self,json_filename:str, webpage:str) -> None:
+
+    def __init__(self,json_filename:str, webpage_fname:str) -> None:
         self.__jfname=json_filename
-        self.__web=webpage
-    
+        self.__webfname=webpage_fname
+      
+
+        
     def __web_page(self):
-        pass
+        with open(self.__webfname, 'r') as file:
+            return file.read()
     
-    def __get_status(self):
-        pass
+    def __add_json(self,content:dict[str,Any] )->bool:
+        # Ensure thread safety when writing to the JSON file
+        with _lock:
+            try:
+                with open(self.__jfname, 'w') as file:
+                    json.dump(content, file, indent=4) # type: ignore
+                return True
+            except Exception as e:
+                print(f"Error writing to JSON file: {e}")
+                return False
 
     def runner(self):
         # Create a socket server
@@ -26,29 +42,22 @@ class Website:
             print('Got a connection from %s' % str(addr))
             request = conn.recv(1024)
             if request:
-                request = str(request)
-                print('Content = %s' % request)
-              
+                json_str = request.decode()      
+                json_obj = json.loads(json_str)
+                self.__add_json(json_obj)  
+                request=b''
 
-
-           
-
-
-            # this part of the code remains as it is. 
-
-            if request.find("/status") == 6:
-                response = self.__get_status()
-                conn.send("HTTP/1.1 200 OK\n")
-                conn.send("Content-Type: application/json\n")
-                conn.send("Connection: close\n\n")
-                conn.sendall(response)
-
-            else:
-                response = self.__web_page()
-                conn.send("HTTP/1.1 200 OK\n")
-                conn.send("Content-Type: text/html\n")
-                conn.send("Connection: close\n\n")
-                conn.sendall(response)
+            # Process the request and send a response
+          
+            response = self.__web_page()
+            conn.send("HTTP/1.1 200 OK\n")
+            conn.send("Content-Type: text/html\n")
+            conn.send("Connection: close\n\n")
+            conn.sendall(response)
             conn.close()
+
+
+        
+
 
         
