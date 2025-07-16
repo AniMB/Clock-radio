@@ -1,8 +1,8 @@
 from machine import Pin
 from utime import *
 from threading import Thread
-from resources import *
-from web import Website
+from config.resources import *
+from web_connectivity.web import WebServer
 
 
 
@@ -15,8 +15,8 @@ This is because the web server runs in a while loop and needs to be able to proc
 
 def main():
 
-    WebServer = Website("data.json", "webpage.html")
-    web_thread = Thread(target=WebServer.runner, daemon=True)
+    Worker = WebServer("data.json", "webpage.html")
+    web_thread = Thread(target=Worker.runner, daemon=True)
     time.sleep(0) # Yield control to the web server
     pass
     
