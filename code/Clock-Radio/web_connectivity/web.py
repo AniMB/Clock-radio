@@ -5,9 +5,9 @@ from config.resources import _lock
 
 class WebServer:
 
-    def __init__(self,json_filename:str, webpage_fname:str) -> None:
-        self.__jfname=json_filename
-        self.__webfname=webpage_fname
+    def __init__(self) -> None:
+        self.__jfname="database/web_data.json"
+        self.__webfname="webpage.html"
       
 
         

@@ -15,10 +15,12 @@ This is because the web server runs in a while loop and needs to be able to proc
 
 def main():
 
-    Worker = WebServer("data.json", "webpage.html")
+    Worker = WebServer()
     web_thread = Thread(target=Worker.runner, daemon=True)
-    time.sleep(0) # Yield control to the web server
-    pass
+    web_thread.start()
+    
+    
+    sleep_ms(0) # Yield control to the web server to be added when reading or writing to the JSON file
     
             
 
