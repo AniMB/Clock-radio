@@ -1,5 +1,5 @@
-import threading
+import _thread
 
 
 global _lock
-_lock = threading.Lock()
+_lock = _thread.allocate_lock()
