@@ -10,17 +10,31 @@
     <link rel="stylesheet" href="style.css">
 
     <title>Clock-Radio</title>
+    <link rel="icon" type="image/x-icon" href="./logo.png">
   </head>
   <body>
+
+  <div style="text-align: center;">
+  <h1 style="font-size: 3em; margin-bottom: 10px;">Clock-Radio</h1>
+  
+  <p><strong>Team name:</strong> MI6</p>
+  <p><strong>Group Number:</strong> OO7</p>
+  <p><strong>Team members:</strong> Animish Murthy, Krishna Gupta</p>
+  <p><strong>Course:</strong> ECE 299</p>
+  <p><strong>Instructor:</strong> Dr. Ilamparithi Chelvan</p>
+  <p><strong>University of Victoria</strong></p>
+  </div>
+
+
   <div class="container">
-<body>
-  <div class="container">
+  <div class="left-panel">
+    <h3>Clock</h3>
      
     
 
     <div class="clock-box">
       <div class="field">
-        <label for="time">Time</label><br>
+        <label for="time">Local Time</label><br>
         <span class="time_disp" id="time">00:00</span>
         <span id="time_ampm">AM</span>
       </div>
@@ -34,12 +48,40 @@
           <option value="Australia/Sydney">Sydney</option>
           <option value="Asia/Tokyo">Tokyo</option>
           <option value="America/Cancun">Cancun</option>
+          <option value="UTC">UTC</option>
+          <option value="America/Los_Angeles">Los Angeles</option>
+          <option value="America/New_York">New York</option>
+          <option value="Europe/Berlin">Berlin</option>
+          <option value="Europe/Paris">Paris</option>
+          <option value="Asia/Dubai">Dubai</option>
+
+          <option value="Asia/Shanghai">Shanghai</option>
+          <option value="Asia/Singapore">Singapore</option>
+          <option value="America/Sao_Paulo">Sao Paulo</option>
+          <option value="Pacific/Auckland">Auckland</option>
+          <option value="America/Argentina/Buenos_Aires">Buenos Aires</option>
+          <option value="Asia/Jakarta">Jakarta</option>
+          <option value="Asia/Seoul">Seoul</option>
+          <option value="America/Mexico_City">Mexico City</option>
+          <option value="America/Denver">Denver</option>
+          <option value="America/Chicago">Chicago</option>
+          <option value="America/Caracas">Caracas</option>
+          <option value="America/Edmonton">Edmonton</option>
+          <option value="America/Halifax">Halifax</option>
+
+          <option value="America/Regina">Regina</option>
+          <option value="America/Winnipeg">Winnipeg</option>
+          <option value="America/Calgary">Calgary</option>
+          <option value="America/Whitehorse">Whitehorse</option>
+          <option value="America/Yellowknife">Yellowknife</option>
+
+          
         </select>
       </div>
 
       <div class="button-row">
-        <button id="setLT">Set LT</button>
-        <button id="toggleFormat">Toggle 12/24h</button>
+        <button type="button"id="setLT">Set LT</button>
+        <button type="button"id="toggleFormat">Toggle 12/24h</button>
       </div>
     </div>
 
@@ -53,66 +95,109 @@
       <div><strong>Tokyo</strong><div id="clock-Tokyo">--:--:--</div></div>
       <div><strong>Cancun</strong><div id="clock-Cancun">--:--:--</div></div>
     </div>
-  </div>
-  <div class="left-panel">
-      <button id="editButton">Edit</button>
-
-  
-
-   
-
-      
-
-      
-
-      <h3>ALARM</h3>
-      <div class="alarm-section">
-        <input type="number" id="alarm_hour" placeholder="HOUR" disabled />
-        <input type="number" id="alarm_minute" placeholder="MINUTE" disabled />
-        <select id="alarm_ampm" disabled>
-          <option>AM</option>
-          <option>PM</option>
-        </select>
-      </div>
-
-      <select id="snooze" disabled>
-        <option value="5">5 min</option>
-        <option value="5">6 min</option>
-        <option value="10">7 min</option>
-        <option value="15">9 min</option>
-        <option value="10">10 min</option>
-        <option value="5">11 min</option>
-        <option value="10">13 min</option>
-        <option value="15">14 min</option>
-        <option value="15">15 min</option>
-      </select>
-
-      <div class="button-row">
-        <button id="setAlarm" disabled>Set Alarm</button>
-        <button id="cancelAlarm" disabled>Cancel Alarm</button>
-      </div>  
-
-    <div class="right-panel">
-      <h2>Radio</h2>
-      <select disabled><option>Option 1</option></select>
-      <select disabled><option>Option 2</option></select>
-      <select disabled><option>Option 3</option></select>
-
-      <div class="choice">
-        <h3>Now playing</h3>
-        <span><button disabled id="choice1">1</button></span>
-        <span><button disabled id="choice2">2</button></span>
-        <span><button disabled id="choice3">3</button></span>
-      </div>
-
-      <button id="saveButton">Save</button>
-
-      <div class="volume-control">
+    <br>
+    <div class="volume-control">
+      <label>
+        Volume
         <input type="range" id="volume" min="0" max="100">
-        <label for="volume">Volume</label>
-        <button id="muteButton">Mute</button>
-      </div>
+      </label>
+
+    <button type="button"id="muteButton" value="0">Mute</button>
     </div>
+  </div>
+  <div class="right-panel">
+      <button type="button"id="editButton">Edit</button>      
+      <div class="alarm-section">
+        <h3>ALARM</h3>
+        <div class="alarm-section">
+          <input type="number" id="alarm_hour" placeholder="HOUR" disabled />
+          <input type="number" id="alarm_minute" placeholder="MINUTE" disabled />
+          <select id="alarm_ampm" disabled>
+            <option>AM</option>
+            <option>PM</option>
+          </select>
+        </div>
+        <label for="snooze_label"><strong>SNOOZE</strong></label>
+        <select id="snooze" disabled>
+          <option value="0">Off</option>
+          <option value="5">5 min</option>
+          <option value="5">6 min</option>
+          <option value="10">7 min</option>
+          <option value="15">9 min</option>
+          <option value="10">10 min</option>
+          <option value="5">11 min</option>
+          <option value="10">13 min</option>
+          <option value="15">14 min</option>
+          <option value="15">15 min</option>
+        </select>
+
+        <div class="button-row">
+          <button type="button"id="cancelAlarm" value="1" disabled>Cancel Alarm</button>
+        </div>  
+      </div>
+      <div class="radio">
+   
+      <h2>Radio</h2>
+      <select id="freq1" disabled >
+        <option value="101.9">101.9</option>
+        <option value="101.3">101.3</option>
+        <option value="100.3">100.3</option> 
+        <option value="98.5">98.5</option>
+        <option value="107.3">107.3</option>
+        <option value="90.9">90.9</option>
+        <option value="91.3">91.3</option>
+        <option value="103.1">103.1</option>
+        <option value="107.9">107.9</option>
+        <option value="88.9">88.9</option>
+        <option value="103.7">103.7</option>
+        <option value="98.1">98.1</option> 
+
+      </select>
+      <select id="freq2" disabled>
+        <option value="101.9">101.9</option>
+        <option value="101.3">101.3</option>
+        <option value="100.3">100.3</option> 
+        <option value="98.5">98.5</option>
+        <option value="107.3">107.3</option>
+        <option value="90.9">90.9</option>
+        <option value="91.3">91.3</option>
+        <option value="103.1">103.1</option>
+        <option value="107.9">107.9</option>
+        <option value="88.9">88.9</option>
+        <option value="103.7">103.7</option>
+        <option value="98.1">98.1</option> 
+      </select>
+      <select id="freq3" disabled>
+        <option value="101.9">101.9</option>
+        <option value="101.3">101.3</option>
+        <option value="100.3">100.3</option> 
+        <option value="98.5">98.5</option>
+        <option value="107.3">107.3</option>
+        <option value="90.9">90.9</option>
+        <option value="91.3">91.3</option>
+        <option value="103.1">103.1</option>
+        <option value="107.9">107.9</option>
+        <option value="88.9">88.9</option>
+        <option value="103.7">103.7</option>
+        <option value="98.1">98.1</option>   
+      </select>
+    </div>
+    <button type="button"id="saveButton">Save</button>
+    <br>
+    <div class="choice" >
+      <h3>Now playing</h3>
+      <span><button type="button" id="choice1" >1</button></span>
+      <span><button type="button"id="choice2" >2</button></span>
+      <span><button type="button" id="choice3">3</button></span>
+    </div>
+
+      
+
+      
+    
+    
+    
+  </div>
   </div>
 
     <!-- Optional JavaScript -->
@@ -120,5 +205,6 @@
     <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+    <script src="index.js"></script>
   </body>
 </html>
