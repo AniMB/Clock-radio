@@ -8,6 +8,7 @@ from config.resources import *
 from web_connectivity.web import WebServer
 from typing import Any
 from config.resources import _lock
+from network import WLAN, AP_IF
 
 
 
@@ -75,6 +76,19 @@ def pico_runner():
 
 
 def main():
+    # --------------------------------------------------------------------------
+    # Below given code should not be modified (except for the name of ssid and password). 
+    # Create a network connection
+    ssid = '007'       #Set access point name 
+    password = '12345678'      #Set your access point password
+    ap = WLAN(AP_IF)
+    ap.config(essid=ssid, password=password)
+    ap.active(True)            #activating
+
+    while ap.active() == False:
+        pass
+    print('Connection is successful')
+    print(ap.ifconfig())
     pico_runner()
     Worker = WebServer()
     start_new_thread(Worker.runner,())    
