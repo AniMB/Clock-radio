@@ -16,38 +16,54 @@ from network import WLAN, AP_IF
 class JsonHandler:
     def __init__(self):
         self.__filename = "database/web_data.json"
-        self.__lock = _lock
+        self.__unsaved_local_changes = False
         self.json_object = {}
 
     def read_json(self) ->bool:
-        if self.__lock.acquire(blocking=False):
+        if not self.__unsaved_local_changes:
+            # Ensure thread safety when reading the JSON file
+            self.__unsaved_local_changes = True       
 
-            try:
-                with open(self.__filename, 'r') as file:
-                    self.json_object= json.load(file)  
-                return True
-            except FileNotFoundError:
-                print(f"File {self.__filename} not found.")
-                return False
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON from {self.__filename}: {e}")
+            if _lock.acquire(blocking=False):
+
+                try:
+                    with open(self.__filename, 'r') as file:
+                        self.json_object= json.load(file)  
+                    
+                    return True
+                except FileNotFoundError:
+                    print(f"File {self.__filename} not found.")
+                    
+                    return False
+                except json.JSONDecodeError as e:
+                    print(f"Error decoding JSON from {self.__filename}: {e}")
+                    return False
+                finally:
+                    _lock.release()
+            else:
+                print("Lock is already acquired, cannot read JSON file.")
                 return False
         else:
-            print("Lock is already acquired, cannot read JSON file.")
-            return False
+            
+            return True  # Return False if there are unsaved local changes
 
     def write_json(self) -> bool:
-        if self.__lock.acquire(blocking=False):
-
+        if _lock.acquire(blocking=False):
+            self.__unsaved_local_changes = False
             try:
                 with open(self.__filename, 'w') as file:
                     json.dump(self.json_object, file, indent=4)  # type: ignore
+                
                 return True
             except Exception as e:
                 print(f"Error writing to {self.__filename}: {e}")
                 return False
+            finally:
+                _lock.release()
+            
         else:
             print("Lock is already acquired, cannot write JSON file.")
+
             return False  
 
 
@@ -56,22 +72,25 @@ class JsonHandler:
 This is because the web server runs in a while loop and needs to be able to process requests"""
 def pico_runner():
     handle_json = JsonHandler()
-    handle_json.read_json()
-    value_dict = handle_json.json_object
+    while True:
+        handle_json.read_json()
+        value_dict = handle_json.json_object
 
-    '''User Code begins here'''
-
-
-
+        '''User Code begins here'''
 
 
 
 
 
-    '''User Code ends here'''
 
 
-    handle_json.write_json()
+
+        '''User Code ends here'''
+
+
+        handle_json.write_json()
+        sleep_ms(0) # Yield control to the web server to be added when reading or writing to the JSON file
+        
 
 
 
@@ -89,11 +108,12 @@ def main():
         pass
     print('Connection is successful')
     print(ap.ifconfig())
-    pico_runner()
+    # --------------------------------------------------------------------------
     Worker = WebServer()
-    start_new_thread(Worker.runner,())    
+    start_new_thread(Worker.runner,()) 
+    pico_runner()   
     
-    sleep_ms(0) # Yield control to the web server to be added when reading or writing to the JSON file
+   
     
             
 
