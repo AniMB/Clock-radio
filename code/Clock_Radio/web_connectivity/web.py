@@ -1,18 +1,18 @@
 import socket
 import json
-from typing import Any
+
 from config.resources import _lock
 
 
 class WebServer:
 
     def __init__(self) -> None:
-        self.__jfname="database/web_data.json"
-        self.__webfname="webpage.html"
+        self.__jfname="../web_data.json"
+        self.__webfname="./web_connectivity/webpage.html"
       
-    def __read_json(self) -> dict[str, Any]:
+    def __read_json(self) :
         # Ensure thread safety when reading the JSON file
-        with _lock:
+        if _lock.acquire(False):
             try:
                 with open(self.__jfname, 'r') as file:
                     return json.load(file)  # type: ignore
@@ -22,13 +22,15 @@ class WebServer:
             except json.JSONDecodeError as e:
                 print(f"Error decoding JSON from {self.__jfname}: {e}")
                 return {}
+            finally:
+                _lock.release()
     
         
     def __web_page(self):
         with open(self.__webfname, 'r') as file:
             return file.read()
     
-    def __update_json(self, data: dict[str, Any]) -> None:
+    def __update_json(self, data) -> None:
         # Ensure thread safety when writing to the JSON file
         try:
             with open(self.__jfname, 'w') as file:
@@ -59,10 +61,30 @@ class WebServer:
             
                 # Process the request and send a response
                 if "GET /data" in request:
-                    with _lock:
-                        payload = json.dumps(self.__read_json()).encode('utf-8')
+                    
+                    payload = json.dumps(self.__read_json()).encode('utf-8')
                     conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
                     conn.send(payload)
+                elif "Get /style.css" in request:
+                    try:
+                        with open("./web_connectivity/style.css", 'r') as file:
+                            css_content = file.read()
+                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n")
+                        conn.send(css_content.encode('utf-8'))
+                    except FileNotFoundError:
+                        conn.send("HTTP/1.1 404 Not Found\r\n\r\n")
+                elif "GET /favicon.ico" in request:
+                    conn.send("HTTP/1.1 204 No Content\r\n\r\n")
+                 
+                    print("Favicon response sent.")
+                elif "Get /index.js" in request:
+                    try:
+                        with open("./web_connectivity/index.js", 'r') as file:
+                            js_content = file.read()
+                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n")
+                        conn.send(js_content.encode('utf-8'))
+                    except FileNotFoundError:
+                        conn.send("HTTP/1.1 404 Not Found\r\n\r\n")
                 elif "GET /" in request:
                     # Here you can handle different requests, e.g., GET, POST
                     # For simplicity, we will just return the web page
