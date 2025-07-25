@@ -7,12 +7,12 @@ from config.resources import _lock
 class WebServer:
 
     def __init__(self) -> None:
-        self.__jfname="../web_data.json"
+        self.__jfname="web_data.json"
         self.__webfname="./web_connectivity/webpage.html"
       
     def __read_json(self) :
         # Ensure thread safety when reading the JSON file
-        if _lock.acquire(False):
+        if _lock.acquire(blocking=False):
             try:
                 with open(self.__jfname, 'r') as file:
                     return json.load(file)  # type: ignore
@@ -24,6 +24,9 @@ class WebServer:
                 return {}
             finally:
                 _lock.release()
+        else:
+            print("Lock is already acquired, cannot read JSON file.")
+            return {}
     
         
     def __web_page(self):
@@ -63,63 +66,62 @@ class WebServer:
                 if "GET /data" in request:
                     
                     payload = json.dumps(self.__read_json()).encode('utf-8')
-                    conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n")
+                    conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n")
                     conn.send(payload)
-                elif "Get /style.css" in request:
+                elif "GET /style.css" in request:
                     try:
                         with open("./web_connectivity/style.css", 'r') as file:
                             css_content = file.read()
-                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\n\r\n")
+                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nConnection: close\r\n\r\n")
                         conn.send(css_content.encode('utf-8'))
                     except FileNotFoundError:
-                        conn.send("HTTP/1.1 404 Not Found\r\n\r\n")
+                        conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
                 elif "GET /favicon.ico" in request:
-                    conn.send("HTTP/1.1 204 No Content\r\n\r\n")
-                 
+                    conn.send("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                     print("Favicon response sent.")
-                elif "Get /index.js" in request:
+                elif "GET /index.js" in request:
                     try:
                         with open("./web_connectivity/index.js", 'r') as file:
                             js_content = file.read()
-                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\n\r\n")
+                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nConnection: close\r\n\r\n")
                         conn.send(js_content.encode('utf-8'))
                     except FileNotFoundError:
-                        conn.send("HTTP/1.1 404 Not Found\r\n\r\n")
+                        conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
                 elif "GET /" in request:
                     # Here you can handle different requests, e.g., GET, POST
                     # For simplicity, we will just return the web page
                     response = self.__web_page()
-                    conn.send("HTTP/1.1 200 OK\n")
-                    conn.send("Content-Type: text/html\n")
-                    conn.send("Connection: close\n\n")
-                    conn.sendall(response)
+                    conn.send("HTTP/1.1 200 OK\r\n")
+                    conn.send("Content-Type: text/html\r\n")
+                    conn.send("Connection: close\r\n\r\n")
+                    conn.sendall(response.encode('utf-8'))
 
                 
 
                 elif "POST /update" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         new_data = json.loads(body)
                         self.__update_json(new_data)
-                        conn.send("HTTP/1.1 200 OK\r\n\r\nUPDATED")
+                        conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nUPDATED")
                     except Exception as e:
                         print("Update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
 
                 elif "POST /lock" in request:
-                    if _lock.acquire(False):
+                    if _lock.acquire(blocking=False):
                         print("Lock acquired by UI")
-                        conn.send("HTTP/1.1 200 OK\r\n\r\nLOCKED")
+                        conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nLOCKED")
                     else:
-                        conn.send("HTTP/1.1 423 Locked\r\n\r\nALREADY LOCK")
+                        conn.send("HTTP/1.1 423 Locked\r\nConnection: close\r\n\r\nALREADY LOCK")
 
                 elif "POST /unlock" in request:
                     try:
                         _lock.release()
                         print("Lock released by UI")
-                        conn.send("HTTP/1.1 200 OK\r\n\r\nUNLOCKED")
+                        conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nUNLOCKED")
                     except:
-                        conn.send("HTTP/1.1 500 Internal Server Error\r\n\r\nFAILED")
+                        conn.send("HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\nFAILED")
                 elif "POST /timeformat" in request:
                     try:
                         body = request.split('\r\r\n')[-1]  # Extract after headers
@@ -131,12 +133,12 @@ class WebServer:
                             current_data["use24Hour"] = use24Hour
                             with _lock:
                                 self.__update_json(current_data)
-                            conn.send("HTTP/1.1 200 OK\r\n\r\nFORMAT UPDATED")
+                            conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nFORMAT UPDATED")
                         else:
-                            conn.send("HTTP/1.1 400 Bad Request\r\n\r\nINVALID FORMAT")
+                            conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nINVALID FORMAT")
                     except Exception as e:
                         print("Format update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
 
                 elif "POST /mute" in request:
                     try:
@@ -149,12 +151,12 @@ class WebServer:
                             current_data["mute"] = mute
                             with _lock:
                                 self.__update_json(current_data)
-                            conn.send("HTTP/1.1 200 OK\r\n\r\nMUTE UPDATED")
+                            conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nMUTE UPDATED")
                         else:
-                            conn.send("HTTP/1.1 400 Bad Request\r\n\r\nINVALID MUTE STATUS")
+                            conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nINVALID MUTE STATUS")
                     except Exception as e:
                         print("Mute update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /volume" in request:
                     try:
                         body = request.split('\r\r\n')[-1]  # Extract after headers
@@ -166,12 +168,12 @@ class WebServer:
                             current_data["volume"] = volume
                             with _lock:
                                 self.__update_json(current_data)
-                            conn.send("HTTP/1.1 200 OK\r\n\r\nVOLUME UPDATED")
+                            conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nVOLUME UPDATED")
                         else:
-                            conn.send("HTTP/1.1 400 Bad Request\r\n\r\nINVALID VOLUME")
+                            conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nINVALID VOLUME")
                     except Exception as e:
                         print("Volume update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /set_local_time" in request:
                     try:
                         body = request.split('\r\r\n')[-1]  # Extract after headers
@@ -183,12 +185,12 @@ class WebServer:
                             current_data["Time"] = local_time
                             with _lock:
                                 self.__update_json(current_data)
-                            conn.send("HTTP/1.1 200 OK\r\n\r\nLOCAL TIME UPDATED")
+                            conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nLOCAL TIME UPDATED")
                         else:
-                            conn.send("HTTP/1.1 400 Bad Request\r\n\r\nINVALID TIME")
+                            conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nINVALID TIME")
                     except Exception as e:
                         print("Local time update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /choice" in request:
                     try:
                         body = request.split('\r\r\n')[-1]  # Extract after headers
@@ -200,14 +202,14 @@ class WebServer:
                             current_data["choice"] = choice
                             with _lock:
                                 self.__update_json(current_data)
-                            conn.send("HTTP/1.1 200 OK\r\n\r\nCHOICE UPDATED")
+                            conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nCHOICE UPDATED")
                         else:
-                            conn.send("HTTP/1.1 400 Bad Request\r\n\r\nINVALID CHOICE")
+                            conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nINVALID CHOICE")
                     except Exception as e:
                         print("Choice update error:", e)
-                        conn.send("HTTP/1.1 400 Bad Request\r\n\r\nBAD JSON")
+                        conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 else:
-                    conn.send("HTTP/1.1 404 Not Found\r\n\r\n")
+                    conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
 
             except Exception as e:
                 print(f"Error handling request: {e}")

@@ -16,7 +16,7 @@ from network import WLAN, AP_IF
 """Make a read json write json function that uses a lock to ensure thread safety. This will be for the main.py file."""
 class JsonHandler:
     def __init__(self):
-        self.__filename = "/web_data.json"
+        self.__filename = "web_data.json"
       
         self.json_object = {
                     "alarm_hour": 0,
@@ -81,8 +81,12 @@ class JsonHandler:
 This is because the web server runs in a while loop and needs to be able to process requests"""
 def pico_runner():
     handle_json = JsonHandler()
+    # Initialize JSON file if it doesn't exist
+    if not handle_json.read_json():
+        handle_json.write_json()
+    
     while True:
-        handle_json.read_json()
+        # Only read JSON when needed, not every loop
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
@@ -96,9 +100,9 @@ def pico_runner():
 
         '''User Code ends here'''
 
-
-        handle_json.write_json()
-        sleep_ms(0) # Yield control to the web server to be added when reading or writing to the JSON file
+        # Only write JSON if changes were made
+        # handle_json.write_json()  # Comment out for now - write only when needed
+        sleep_ms(100) # Yield control to the web server with reasonable delay
         
 
 
