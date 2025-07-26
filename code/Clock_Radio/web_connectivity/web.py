@@ -79,12 +79,12 @@ class WebServer:
                 elif "GET /favicon.ico" in request:
                     conn.send("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                     print("Favicon response sent.")
-                elif "GET /index.js" in request:
+                elif "GET /index.js" in request or "GET index.js" in request:
                     try:
                         with open("./web_connectivity/index.js", 'r') as file:
                             js_content = file.read()
                         conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nConnection: close\r\n\r\n")
-                        conn.send(js_content.encode('utf-8'))
+                        conn.sendall(js_content.encode('utf-8'))
                     except FileNotFoundError:
                         conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
                 elif "GET /" in request:
@@ -215,9 +215,3 @@ class WebServer:
                 print(f"Error handling request: {e}")
             finally:
                 conn.close()
-
-
-        
-
-
-        
