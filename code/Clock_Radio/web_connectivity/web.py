@@ -12,7 +12,7 @@ class WebServer:
       
     def __read_json(self) :
         # Ensure thread safety when reading the JSON file
-        if _lock.acquire(blocking=False):
+        if _lock.acquire(False):
             try:
                 return json_obj  # Return the global json_obj directly
             
@@ -104,7 +104,7 @@ class WebServer:
                         conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
 
                 elif "POST /lock" in request:
-                    if _lock.acquire(blocking=False):
+                    if _lock.acquire(False):
                         print("Lock acquired by UI")
                         conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nLOCKED")
                     else:

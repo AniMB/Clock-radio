@@ -7,7 +7,7 @@ from _thread import *
 from config.resources import *
 from web_connectivity.web import WebServer
 
-from config.resources import _lock
+from config.resources import _lock, json_obj
 from network import WLAN, AP_IF
 
 
