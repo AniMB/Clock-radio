@@ -112,7 +112,7 @@ def main():
     # Below given code should not be modified (except for the name of ssid and password). 
     # Create a network connection
     ssid = '007'       #Set access point name 
-    password = '12345678'      #Set your access point password
+    password = '212173314'      #Set your access point password
     ap = WLAN(AP_IF)
     ap.config(essid=ssid, password=password)
     ap.active(True)            #activating
