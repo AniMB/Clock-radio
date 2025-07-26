@@ -66,35 +66,36 @@ class WebServer:
                 if "GET /data" in request:
                     
                     payload = json.dumps(self.__read_json()).encode('utf-8')
-                    conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n")
+                    conn.send(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode('utf-8'))
                     conn.send(payload)
                 elif "GET /style.css" in request:
                     try:
                         with open("./web_connectivity/style.css", 'r') as file:
                             css_content = file.read()
-                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nConnection: close\r\n\r\n")
-                        conn.send(css_content.encode('utf-8'))
+                        css_bytes = css_content.encode('utf-8')
+                        conn.send(f"HTTP/1.1 200 OK\r\nContent-Type: text/css\r\nContent-Length: {len(css_bytes)}\r\nConnection: close\r\n\r\n".encode('utf-8'))
+                        conn.send(css_bytes)
                     except FileNotFoundError:
                         conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
                 elif "GET /favicon.ico" in request:
                     conn.send("HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
                     print("Favicon response sent.")
-                elif "GET /index.js" in request or "GET index.js" in request:
+                elif "GET /index.js" in request:
                     try:
                         with open("./web_connectivity/index.js", 'r') as file:
                             js_content = file.read()
-                        conn.send("HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nConnection: close\r\n\r\n")
-                        conn.sendall(js_content.encode('utf-8'))
+                        js_bytes = js_content.encode('utf-8')
+                        conn.send(f"HTTP/1.1 200 OK\r\nContent-Type: application/javascript\r\nContent-Length: {len(js_bytes)}\r\nConnection: close\r\n\r\n".encode('utf-8'))
+                        conn.sendall(js_bytes)
                     except FileNotFoundError:
                         conn.send("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n")
                 elif "GET /" in request:
                     # Here you can handle different requests, e.g., GET, POST
                     # For simplicity, we will just return the web page
                     response = self.__web_page()
-                    conn.send("HTTP/1.1 200 OK\r\n")
-                    conn.send("Content-Type: text/html\r\n")
-                    conn.send("Connection: close\r\n\r\n")
-                    conn.sendall(response.encode('utf-8'))
+                    response_bytes = response.encode('utf-8')
+                    conn.send(f"HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {len(response_bytes)}\r\nConnection: close\r\n\r\n".encode('utf-8'))
+                    conn.sendall(response_bytes)
 
                 
 
@@ -122,9 +123,9 @@ class WebServer:
                         conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nUNLOCKED")
                     except:
                         conn.send("HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\nFAILED")
-                elif "POST /timeformat" in request:
+                elif "POST /timeformat" in request or "POST /time_format" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         new_format = json.loads(body)
                         if new_format.get("use24Hour") is not None:
                             use24Hour = new_format["use24Hour"]
@@ -142,7 +143,7 @@ class WebServer:
 
                 elif "POST /mute" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         mute_data = json.loads(body)
                         if mute_data.get("mute") is not None:
                             mute = mute_data["mute"]
@@ -159,7 +160,7 @@ class WebServer:
                         conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /volume" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         volume_data = json.loads(body)
                         if volume_data.get("volume") is not None:
                             volume = volume_data["volume"]
@@ -176,7 +177,7 @@ class WebServer:
                         conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /set_local_time" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         time_data = json.loads(body)
                         if time_data.get("localTime") is not None:
                             local_time = time_data["localTime"]
@@ -193,10 +194,10 @@ class WebServer:
                         conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /choice" in request:
                     try:
-                        body = request.split('\r\r\n')[-1]  # Extract after headers
+                        body = request.split('\r\n\r\n')[-1]  # Extract after headers
                         choice_data = json.loads(body)
-                        if choice_data.get("choice") is not None:
-                            choice = choice_data["choice"]
+                        if choice_data.get("choice") is not None or choice_data.get("nowplaying") is not None:
+                            choice = choice_data.get("choice", choice_data.get("nowplaying"))
                             print(f"Choice updated to {choice}")
                             current_data = self.__read_json()
                             current_data["choice"] = choice
