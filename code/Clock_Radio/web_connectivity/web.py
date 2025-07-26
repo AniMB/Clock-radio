@@ -1,27 +1,21 @@
 import socket
 import json
 
-from config.resources import _lock
+from config.resources import _lock, json_obj
 
 
 class WebServer:
 
     def __init__(self) -> None:
-        self.__jfname="web_data.json"
+        
         self.__webfname="./web_connectivity/webpage.html"
       
     def __read_json(self) :
         # Ensure thread safety when reading the JSON file
         if _lock.acquire(blocking=False):
             try:
-                with open(self.__jfname, 'r') as file:
-                    return json.load(file)  # type: ignore
-            except FileNotFoundError:
-                print(f"File {self.__jfname} not found.")
-                return {}
-            except json.JSONDecodeError as e:
-                print(f"Error decoding JSON from {self.__jfname}: {e}")
-                return {}
+                return json_obj  # Return the global json_obj directly
+            
             finally:
                 _lock.release()
         else:
@@ -36,10 +30,10 @@ class WebServer:
     def __update_json(self, data) -> None:
         # Ensure thread safety when writing to the JSON file
         try:
-            with open(self.__jfname, 'w') as file:
-                json.dump(data, file, indent=4)  # type: ignore
+            json_obj.clear()
+            json_obj.update(data) # Update the global json_obj with new data
         except Exception as e:
-            print(f"Error writing to {self.__jfname}: {e}")
+            print(f"Error writing to {data}: {e}")
 
     def runner(self):
                 

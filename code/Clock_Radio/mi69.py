@@ -41,14 +41,10 @@ class JsonHandler:
             if _lock.acquire():
                 
                 try:
-                    with open(self.__filename, 'r') as file:
-                        
-                        self.json_object= json.load(file)  
-                    
-                    
+                    self.json_object = json_obj  # Read the global json_obj directly                  
                     return True
                 except Exception as e:
-                    print(f"Error reading from {self.__filename}: {e}")
+                    print(f"Error reading from {json_obj}: {e}")
                     return False
                 finally:
                     _lock.release()
@@ -60,8 +56,8 @@ class JsonHandler:
         if _lock.acquire():
            
             try:
-                with open(self.__filename, 'w') as file:
-                    json.dump(self.json_object, file)
+                json_obj.clear()
+                json_obj.update(self.json_object)  # Update the global json_obj with current state
                 
                 return True
             except Exception as e:
