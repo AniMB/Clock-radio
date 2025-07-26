@@ -69,11 +69,33 @@ class JsonHandler:
 
 
 #define rotatory encoders and push buttons
-enc_pins = [
-        Pin(1,  Pin.IN, Pin.PULL_UP),
-        Pin(5,  Pin.IN, Pin.PULL_UP),
-        Pin(26, Pin.IN, Pin.PULL_UP)
-]
+# enc_pins = [
+#         Pin(1,  Pin.IN, Pin.PULL_UP),
+#         Pin(5,  Pin.IN, Pin.PULL_UP),
+#         Pin(26, Pin.IN, Pin.PULL_UP)
+# ]
+
+# Rotary Encoder 1 Pins (connected to GP2, GP3, GP1)
+encoder1A = Pin(3, Pin.IN, Pin.PULL_UP)    # ROT1A
+encoder1B = Pin(2, Pin.IN, Pin.PULL_UP)    # ROT1B
+encoder2SW = Pin(1, Pin.IN, Pin.PULL_UP)   # SW2
+
+# Encoder 2 Pins (J5) mapped to GP4, GP5, GP6
+encoder2A = Pin(6, Pin.IN, Pin.PULL_UP)    # RDT2A
+encoder2B = Pin(7, Pin.IN, Pin.PULL_UP)    # RDT2B
+encoder4SW = Pin(5, Pin.IN, Pin.PULL_UP)   # SW4
+
+# Rotary Encoder 3 Pins (connected to GP26, GP27, GP28)
+encoder3A = Pin(28, Pin.IN, Pin.PULL_UP)   # ROT3A
+encoder3B = Pin(27, Pin.IN, Pin.PULL_UP)   # ROT3B
+encoder3SW = Pin(26, Pin.IN, Pin.PULL_UP)  # SW3
+
+
+encoder=[encoder2SW,encoder1A,encoder1B,
+encoder2A,encoder2B,encoder4SW,
+encoder3A,encoder3B,encoder3SW]
+
+
 button=Pin(0, Pin.IN, Pin.PULL_UP)
 
 
@@ -83,7 +105,6 @@ spi_sda = Pin(19)
 spi_res = Pin(21)
 spi_dc  = Pin(20)
 spi_cs  = Pin(17)
-
 
 
 
@@ -423,7 +444,7 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-        if (button.value==0):
+        idle = IdleMode(encoder_pins=encoder,button_pin=button)
 
 
 
