@@ -171,6 +171,14 @@ class IdleMode:
                             mode=Timer.PERIODIC,
                             callback=self._refresh_cb)
 
+    def __repr__(self):
+        """Return a developer-friendly representation of the IdleMode state."""
+        return (f"<IdleMode(idle={self.idle}, current_mode={self.current_mode}, "
+                f"is_24h={self.is_24h}, timeout_ms={self.timeout_ms})>")
+        self._refresh.init(period=1000,
+                            mode=Timer.PERIODIC,
+                            callback=self._refresh_cb)
+
     def _on_edge(self, pin):
         """Encoder edge handler: resets inactivity; cycles mode on encoder1."""
         self.last_edge = ticks_ms()
@@ -330,6 +338,13 @@ class AlarmMode:
             self.oled.text(f":{self.alarm_minute:02}", 0, 10)
             print(f"→ Setting minute: {self.alarm_minute:02}")
         self.oled.show()
+
+    def __repr__(self):
+        """Return a developer‑friendly summary of the AlarmMode state."""
+        return (f"<AlarmMode(setting={self.setting}, "
+                f"stage={self.stage}, "
+                f"hour={self.alarm_hour:02}, "
+                f"minute={self.alarm_minute:02})>")
 
 
 
