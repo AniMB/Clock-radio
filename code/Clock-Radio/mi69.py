@@ -92,8 +92,8 @@ encoder3SW = Pin(26, Pin.IN, Pin.PULL_UP)  # SW3
 
 
 encoder=[encoder2SW,encoder1A,encoder1B,
-encoder2A,encoder2B,encoder4SW,
-encoder3A,encoder3B,encoder3SW]
+encoder4SW,encoder2A,encoder2B,
+encoder3SW,encoder3A,encoder3B]
 
 
 button=Pin(0, Pin.IN, Pin.PULL_UP)
@@ -193,6 +193,14 @@ class IdleMode(ModeBase):
         if pin == self.encoder_pins[0]:
             self.current_mode = (self.current_mode % 3) + 1
             self.show_mode_menu()
+            if pin == self.encoder_pins[0]:
+                alarm_mode.enter()
+            elif pin == self.encoder_pins[3]:
+                clock_mode.enter()
+            elif pin == self.encoder_pins[7]:
+                fm_mode.enter()
+
+
 
     def handle_button(self, pin):
         # toggle 12/24h format when idle; otherwise cycle mode
@@ -231,13 +239,18 @@ class IdleMode(ModeBase):
         oled.show()
         # dispatch to sub-modes
         if self.current_mode == 1:
-            clock_mode.enter()
-        elif self.current_mode == 2:
             alarm_mode.enter()
+        elif self.current_mode == 2:
+            clock_mode.enter()
         elif self.current_mode == 3:
             fm_mode.enter()
 
     def __repr__(self):
+        """If idle, display current time on the OLED; then return state repr."""
+        # Side effect: update display if in idle mode
+        if getattr(self, 'idle', False):
+            self.show_time()
+        # Return a concise internal-state snapshot
         return f"<IdleMode(mode={self.current_mode}, is_24h={self.is_24h})>"
 
 # ——— Alarm Mode ———
@@ -320,37 +333,62 @@ class ClockMode(ModeBase):
 
 # ——— FM Mode ———
 class FMMode(ModeBase):
-    """
-    FM mode: displays an FM screen until 3s inactivity, then returns to idle.
-    """
-    def __init__(self, encoder_pin):
-        self.setting = False
-        super().__init__([encoder_pin], timeout_ms=3000)
+    """FM mode: tune TEA5767, volume via encoder, display freq and time on repr."""
+    def __init__(self, freq_enc_pin):
+        # only frequency encoder used here
+        self.freq = 101.9
+        self.volume = 5
+        # I2C for TEA5767
+        self.i2c = I2C(1, sda=Pin(4), scl=Pin(5), freq=100000)
+        self.radio = TEA5767(self.i2c)
+        super().__init__([freq_enc_pin], timeout_ms=3000)
 
     def enter(self):
-        # show FM screen
         self.setting = True
-        oled.fill(0)
-        oled.text("*** FM Mode ***", 0, 0)
-        oled.show()
         self.last_edge = ticks_ms()
+        self.radio.set_frequency(self.freq)
+        oled.fill(0)
+        oled.text("FM Mode", 0, 0)
+        oled.text(f"{self.freq:.1f} MHz", 0,10)
+        oled.text(f"Vol: {self.volume}", 0,20)
+        oled.show()
 
     def handle_edge(self, pin):
-        # reset inactivity timer
-        if self.setting:
-            self.last_edge = ticks_ms()
+        if pin != self.encoder_pins[0]:
+            return
+        self.last_edge = ticks_ms()
+        # step frequency
+        self.freq = round(self.freq + 0.1, 1)
+        self.radio.set_frequency(self.freq)
+        oled.fill(0)
+        oled.text("FM Mode", 0, 0)
+        oled.text(f"{self.freq:.1f} MHz", 0,10)
+        oled.text(f"Vol: {self.volume}", 0,20)
+        oled.show()
+
+    def handle_button(self, pin):
+        # exit FM
+        if pin.value() == 0:
+            self.setting = False
+            oled.fill(0)
+            oled.show()
+            idle.handle_timeout()
 
     def handle_timeout(self):
-        if not self.setting:
-            return
-        # exit FM mode, go back to idle
-        self.setting = False
-        oled.fill(0)
-        oled.show()
-        idle.handle_timeout()
+        if getattr(self, 'setting', False):
+            self.setting = False
+            oled.fill(0)
+            oled.show()
+            idle.handle_timeout()
 
     def __repr__(self):
-        return f"<FMMode(setting={self.setting})>"
+        # display time
+        _, _, _, _, h, m, s, _ = rtc.datetime()
+        oled.fill(0)
+        oled.text(f"Time: {h:02}:{m:02}:{s:02}", 0, 0)
+        oled.text(f"Freq: {self.freq:.1f}MHz", 0,10)
+        oled.show()
+        return f"<FMMode(time={h:02}:{m:02}:{s:02}, freq={self.freq:.1f}MHz)>"
 
 
 
