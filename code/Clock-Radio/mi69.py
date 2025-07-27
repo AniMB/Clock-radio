@@ -117,42 +117,27 @@ oled = SSD1306_SPI(128, 64, spi, dc=Pin(20), res=Pin(21), cs=Pin(17), reset=True
 
 class ModeBase:
     """
-    Base class for all modes: handles encoder IRQs, button IRQs,
-    inactivity timeout, and optional refresh timer.
+    Handles encoder/button IRQs and a 3s inactivity watchdog.
     Subclasses override handle_edge, handle_button, handle_timeout, handle_refresh.
     """
-    def __init__(
-        self,
-        encoder_pins,
-        button_pin=None,
-        timeout_ms=3000,
-        refresh_ms=None
-    ):
+    def __init__(self, encoder_pins, button_pin=None, timeout_ms=3000):
         self.encoder_pins = encoder_pins
         self.button_pin = button_pin
         self.timeout_ms = timeout_ms
         self.last_edge = ticks_ms()
-        # attach encoder interrupts
+        # bind encoder IRQs
         for enc in self.encoder_pins:
             enc.irq(trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
-                    handler=self._on_edge,
-                    hard=True)
-        # attach button if provided
+                    handler=self._on_edge, hard=True)
+        # bind button IRQ
         if self.button_pin:
             self.button_pin.irq(trigger=Pin.IRQ_FALLING,
-                                handler=self._on_button,
-                                hard=True)
-        # inactivity timer
+                                handler=self._on_button, hard=True)
+        # inactivity watchdog
         self._timer = Timer(-1)
         self._timer.init(period=self.timeout_ms,
                          mode=Timer.PERIODIC,
                          callback=self._on_timeout)
-        # optional refresh timer
-        if refresh_ms:
-            self._refresh = Timer(-1)
-            self._refresh.init(period=refresh_ms,
-                               mode=Timer.PERIODIC,
-                               callback=self._on_refresh)
 
     def _on_edge(self, pin):
         self.last_edge = ticks_ms()
@@ -162,22 +147,15 @@ class ModeBase:
         self.last_edge = ticks_ms()
         self.handle_button(pin)
 
-    def _on_timeout(self, t):
+    def _on_timeout(self, timer):
         if ticks_diff(ticks_ms(), self.last_edge) >= self.timeout_ms:
             self.handle_timeout()
 
-    def _on_refresh(self, t):
-        self.handle_refresh()
-
-    # Methods to override in subclasses:
-    def handle_edge(self, pin):
-        pass
-    def handle_button(self, pin):
-        pass
-    def handle_timeout(self):
-        pass
-    def handle_refresh(self):
-        pass
+    # stubs for subclass overrides
+    def handle_edge(self, pin):       pass
+    def handle_button(self, pin):     pass
+    def handle_timeout(self):         pass
+    def handle_refresh(self):         pass
 
 
 # ——— Idle Mode ———
@@ -354,16 +332,26 @@ class FMMode(ModeBase):
         oled.show()
 
     def handle_edge(self, pin):
+        """Rotate encoder to step FM frequency, with out-of-range feedback."""
         if pin != self.encoder_pins[0]:
             return
+        from utime import ticks_ms
         self.last_edge = ticks_ms()
-        # step frequency
-        self.freq = round(self.freq + 0.1, 1)
+        # compute next freq
+        new_freq = round(self.freq + 0.1, 1)
+        # check valid FM band
+        if new_freq < 88.0 or new_freq > 108.0:
+            oled.fill(0)
+            oled.text("Invalid freq", 0, 0)
+            oled.show()
+            return
+        self.freq = new_freq
         self.radio.set_frequency(self.freq)
+        # update display
         oled.fill(0)
         oled.text("FM Mode", 0, 0)
-        oled.text(f"{self.freq:.1f} MHz", 0,10)
-        oled.text(f"Vol: {self.volume}", 0,20)
+        oled.text(f"{self.freq:.1f}MHz", 0, 10)
+        oled.text(f"Vol: {self.volume}", 0, 20)
         oled.show()
 
     def handle_button(self, pin):
@@ -404,7 +392,10 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-
+        idle=IdleMode(encoder_pins=encoder,button_pin=button)
+        alarm_mode = AlarmMode(encoder1A)
+        clock_mode = ClockMode(encoder2A)
+        fm_mode    = FMMode(encoder3A)
 
 
 
