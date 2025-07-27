@@ -195,10 +195,13 @@ class IdleMode(ModeBase):
             self.show_mode_menu()
 
     def handle_button(self, pin):
-        if self.is_24h is not None:
-            # toggle format if idle
+        # toggle 12/24h format when idle; otherwise cycle mode
+        if self.idle:
             self.is_24h = not self.is_24h
             self.show_time()
+        else:
+            self.current_mode = (self.current_mode % 3) + 1
+            self.show_mode_menu()
 
     def handle_timeout(self):
         # enter idle: show time
@@ -221,15 +224,18 @@ class IdleMode(ModeBase):
         oled.show()
 
     def show_mode_menu(self):
+        """Display mode menu and dispatch based on selection: 1=Clock, 2=Alarm, 3=FM."""
         oled.fill(0)
         oled.text("Which Mode?", 0, 0)
-        oled.text("1,2,3", 0,10)
+        oled.text("1=Clk 2=Alm 3=FM", 0, 10)
         oled.show()
-        # transitions
-        if self.current_mode == 2:
+        # dispatch to sub-modes
+        if self.current_mode == 1:
             clock_mode.enter()
-        elif self.current_mode == 3:
+        elif self.current_mode == 2:
             alarm_mode.enter()
+        elif self.current_mode == 3:
+            fm_mode.enter()
 
     def __repr__(self):
         return f"<IdleMode(mode={self.current_mode}, is_24h={self.is_24h})>"
@@ -312,13 +318,43 @@ class ClockMode(ModeBase):
     def __repr__(self):
         return f"<ClockMode(stage={self.stage}, hour={self.hour}, min={self.minute})>"
 
+# ——— FM Mode ———
+class FMMode(ModeBase):
+    """
+    FM mode: displays an FM screen until 3s inactivity, then returns to idle.
+    """
+    def __init__(self, encoder_pin):
+        self.setting = False
+        super().__init__([encoder_pin], timeout_ms=3000)
+
+    def enter(self):
+        # show FM screen
+        self.setting = True
+        oled.fill(0)
+        oled.text("*** FM Mode ***", 0, 0)
+        oled.show()
+        self.last_edge = ticks_ms()
+
+    def handle_edge(self, pin):
+        # reset inactivity timer
+        if self.setting:
+            self.last_edge = ticks_ms()
+
+    def handle_timeout(self):
+        if not self.setting:
+            return
+        # exit FM mode, go back to idle
+        self.setting = False
+        oled.fill(0)
+        oled.show()
+        idle.handle_timeout()
+
+    def __repr__(self):
+        return f"<FMMode(setting={self.setting})>"
 
 
 
 
-
-now=utime.ticks_ms()
-diff=utime.ticks_diff(now, last_edge_ms)
 
 
 """The main needs to have a time.sleep(0). This is to yield control to the web server.
@@ -330,7 +366,6 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-        idle = IdleMode(encoder_pins=encoder,button_pin=button)
 
 
 
