@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from machine import Pin
+from machine import Pin, RTC
 from utime import *
 from _thread import *
 from config.resources import *
@@ -41,10 +41,13 @@ class JsonHandler:
             if _lock.acquire():
                 
                 try:
-                    self.json_object = json_obj  # Read the global json_obj directly                  
+                    with open(self.__filename, "r") as file:  
+                        data = json.load(file)
+                    self.json_object.clear()  # Clear the current json_object
+                    self.json_object.update(data)                
                     return True
                 except Exception as e:
-                    print(f"Error reading from {json_obj}: {e}")
+                    print(f"Error reading from {self.__filename}: {e}")
                     return False
                 finally:
                     _lock.release()
@@ -56,8 +59,9 @@ class JsonHandler:
         if _lock.acquire():
            
             try:
-                json_obj.clear()
-                json_obj.update(self.json_object)  # Update the global json_obj with current state
+                with open(self.__filename, "w") as file:
+                    json.dump(self.json_object, file)
+                print(f"JSON data written to {self.__filename} successfully.")
                 
                 return True
             except Exception as e:
@@ -83,11 +87,24 @@ def pico_runner():
     
     while True:
         # Only read JSON when needed, not every loop
+        handle_json.read_json()  # Read the JSON data into value_dict
         value_dict = handle_json.json_object
+        
 
         '''User Code begins here'''
 
+        # Example of how to use the value_dict
+        
+        # Simulate some processing or handling of the data
+        # Update time in the JSON object
+        
+        
+        
+        print("Current JSON Data:", value_dict)
+        
+        
 
+        
 
 
 
@@ -97,8 +114,8 @@ def pico_runner():
         '''User Code ends here'''
 
         # Only write JSON if changes were made
-        # handle_json.write_json()  # Comment out for now - write only when needed
-        sleep_ms(100) # Yield control to the web server with reasonable delay
+        handle_json.write_json()  
+        sleep_ms(1000) # Yield control to the web server with reasonable delay
         
 
 

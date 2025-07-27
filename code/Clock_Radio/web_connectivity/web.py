@@ -7,20 +7,21 @@ from config.resources import _lock, json_obj
 class WebServer:
 
     def __init__(self) -> None:
-        
+        self.__jfname="web_data.json"
         self.__webfname="./web_connectivity/webpage.html"
       
     def __read_json(self) :
         # Ensure thread safety when reading the JSON file
-        if _lock.acquire(False):
+        with _lock:
             try:
-                return json_obj  # Return the global json_obj directly
+                with open(self.__jfname, "r") as file:
+                    data = json.load(file)
+                    return data
             
-            finally:
-                _lock.release()
-        else:
-            print("Lock is already acquired, cannot read JSON file.")
-            return {}
+            except Exception as e:
+                print(f"Error reading from {json_obj}: {e}")
+                return {}
+            
     
         
     def __web_page(self):
@@ -30,11 +31,42 @@ class WebServer:
     def __update_json(self, data) -> None:
         # Ensure thread safety when writing to the JSON file
         try:
-            json_obj.clear()
-            json_obj.update(data) # Update the global json_obj with new data
+            with open(self.__jfname, "w") as file:
+                json.dump(data, file)
+            print(f"JSON data written to {self.__jfname} successfully.")
         except Exception as e:
             print(f"Error writing to {data}: {e}")
+    @staticmethod
+    def receive_full_request(conn):
+        buffer = b""
+        while b"\r\n\r\n" not in buffer:
+            chunk = conn.recv(1024)
+            if not chunk:
+                break
+            buffer += chunk
 
+        # Split header and any partial body
+        header_bytes, sep, body_bytes = buffer.partition(b"\r\n\r\n")
+        header_str = header_bytes.decode()
+
+        # Extract content length
+        content_length = 0
+        for line in header_str.split("\r\n"):
+            if line.lower().startswith("content-length:"):
+                content_length = int(line.split(":")[1].strip())
+                break
+
+        # Read rest of the body
+        while len(body_bytes) < content_length:
+            more = conn.recv(content_length - len(body_bytes))
+            if not more:
+                break
+            body_bytes += more
+
+        full_request_str = (header_bytes + sep + body_bytes).decode()
+        body_str = body_bytes.decode()
+
+        return full_request_str, body_str
     def runner(self):
                 
 
@@ -53,7 +85,7 @@ class WebServer:
             conn, addr = s.accept()
             try:
                 print(f"Connection from {addr}")
-                request = conn.recv(1024).decode()  
+                request, body = WebServer.receive_full_request(conn) 
                 print(f"Request: {request}")
             
                 # Process the request and send a response
@@ -61,7 +93,7 @@ class WebServer:
                     
                     payload = json.dumps(self.__read_json()).encode('utf-8')
                     conn.send(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(payload)}\r\nConnection: close\r\n\r\n".encode('utf-8'))
-                    conn.send(payload)
+                    conn.sendall(payload)
                 elif "GET /style.css" in request:
                     try:
                         with open("./web_connectivity/style.css", 'r') as file:
@@ -171,13 +203,16 @@ class WebServer:
                         conn.send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\nBAD JSON")
                 elif "POST /set_local_time" in request:
                     try:
+                        print(request)
                         body = request.split('\r\n\r\n')[-1]  # Extract after headers
+                        print(f"Received body for local time update: {body}")
                         time_data = json.loads(body)
-                        if time_data.get("localTime") is not None:
+                        if time_data["localTime"] is not None:
                             local_time = time_data["localTime"]
                             print(f"Local time updated to {local_time}")
                             current_data = self.__read_json()
                             current_data["Time"] = local_time
+                            print(f"Current data before update: {current_data}")
                             with _lock:
                                 self.__update_json(current_data)
                             conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nLOCAL TIME UPDATED")

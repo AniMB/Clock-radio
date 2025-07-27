@@ -37,6 +37,8 @@ function formatTime24To12(time24) {
 }
 
 function updateLocalClock() {
+  console.log("Updating local clock...");
+  console.log("Current time before update:", currentTime);
   let [h, m, s] = currentTime.split(":").map(Number);
   s++;
   if (s >= 60) { s = 0; m++; }
@@ -122,6 +124,7 @@ document.getElementById("setLT").addEventListener("click", () => {
 });
 
 function updateWorldClocks() {
+  try{
   const cities = {
     "Mumbai": "Asia/Kolkata",
     "Toronto": "America/Toronto",
@@ -134,6 +137,8 @@ function updateWorldClocks() {
     const time = getTimeInZone(tz);
     document.getElementById(`clock-${city}`).textContent = time;
   }
+  }catch (error) {
+  console.error("Error updating world clocks:", error); }
 }
 
 setInterval(() => {
@@ -349,17 +354,17 @@ function fetchDataAndUpdateUI() {
   fetch('/data')
     .then(res => res.json())
     .then(data => {
+      console.log("Fetched data:", data);
       // Update local clock
-      currentTime = data.localTime;
+      currentTime = data.Time;
       // Update time format
       use24Hour = data.use24Hour === 1;
       document.getElementById("toggleFormat").style.backgroundColor = use24Hour ? "red" : "green";
       document.getElementById("time_ampm").style.display = use24Hour ? "none" : "inline";
 
-      updateLocalClock();
+     
 
-      // Update world clocks
-      updateWorldClocks();
+      
 
       // Update mute button
       muteButton.value = data.mute;
@@ -394,4 +399,4 @@ function fetchDataAndUpdateUI() {
     });
 }
 
-setInterval(fetchDataAndUpdateUI, 1000);
+setInterval(fetchDataAndUpdateUI, 4000);
