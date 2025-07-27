@@ -119,37 +119,74 @@ class ModeBase:
         self.button_pin = button_pin
         self.timeout_ms = timeout_ms
         self.last_edge = ticks_ms()
-        # bind encoder IRQs
         for enc in self.encoder_pins:
             enc.irq(trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
                     handler=self._on_edge, hard=True)
-        # bind button IRQ
         if self.button_pin:
             self.button_pin.irq(trigger=Pin.IRQ_FALLING,
                                 handler=self._on_button, hard=True)
-        # inactivity watchdog
         self._timer = Timer(-1)
         self._timer.init(period=self.timeout_ms,
                          mode=Timer.PERIODIC,
                          callback=self._on_timeout)
+        # universal volume controls
+        self.volume = 5
+        self.muted = False
+        encoder3A.irq(trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
+                      handler=self._on_vol_rotate, hard=True)
+        encoder3SW.irq(trigger=Pin.IRQ_FALLING,
+                       handler=self._on_vol_button, hard=True)
 
     def _on_edge(self, pin):
-        self.last_edge = ticks_ms()
-        self.handle_edge(pin)
-
+        self.last_edge = ticks_ms(); self.handle_edge(pin)
     def _on_button(self, pin):
-        self.last_edge = ticks_ms()
-        self.handle_button(pin)
-
-    def _on_timeout(self, timer):
+        self.last_edge = ticks_ms(); self.handle_button(pin)
+    def _on_timeout(self, t):
         if ticks_diff(ticks_ms(), self.last_edge) >= self.timeout_ms:
             self.handle_timeout()
-
-    # stubs for subclass overrides
     def handle_edge(self, pin):       pass
     def handle_button(self, pin):     pass
     def handle_timeout(self):         pass
     def handle_refresh(self):         pass
+
+    # ——— Universal Volume Handlers ———
+    def _on_vol_rotate(self, pin):
+        """Handle encoder3 rotation: CW up, CCW down, auto-unmute."""
+        # only act on encoder3A edges
+        if pin is not encoder3A:
+            return
+        a = encoder3A.value()
+        b = encoder3B.value()
+        # direction: CW if A==B
+        if a == b:
+            if self.volume < 15:
+                self.volume += 1
+        else:
+            if self.volume > 0:
+                self.volume -= 1
+        self.muted = False
+        self._show_volume()
+
+    def _on_vol_button(self, pin):
+        """Toggle mute on encoder3 switch press."""
+        if pin is not encoder3SW:
+            return
+        self.muted = not self.muted
+        self._show_volume()
+
+    def _show_volume(self):
+        """Draw a horizontal volume bar at the bottom of the display."""
+        # clear only bottom bar area
+        bar_h = 5
+        y0 = oled.height() - bar_h
+        oled.fill_rect(0, y0, oled.width(), bar_h, 0)
+        # compute fill width
+        fill_w = 0 if self.muted else int((self.volume / 15) * oled.width())
+        # filled portion
+        oled.fill_rect(0, y0, fill_w, bar_h, 1)
+        # outline full bar
+        oled.rect(0, y0, oled.width(), bar_h, 1)
+        oled.show()
 
 
 # ——— Idle Mode ———
