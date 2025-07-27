@@ -99,12 +99,6 @@ encoder3SW,encoder3A,encoder3B]
 button=Pin(0, Pin.IN, Pin.PULL_UP)
 
 
-#define display pins
-spi_sck = Pin(18)
-spi_sda = Pin(19)
-spi_res = Pin(21)
-spi_dc  = Pin(20)
-spi_cs  = Pin(17)
 
 
 
@@ -160,76 +154,104 @@ class ModeBase:
 
 # ——— Idle Mode ———
 class IdleMode(ModeBase):
+    """
+    Clock display, 12/24 toggle, mode-select menu via encoder A,
+    blinking arrow, and direct FM entry via encoder C.
+    """
     def __init__(self, encoder_pins, button_pin):
+        super().__init__(encoder_pins, button_pin, timeout_ms=3000)
         self.current_mode = 1
+        self.selecting_mode = False
+        self._arrow_visible = True
         self.is_24h = True
-        super().__init__(encoder_pins, button_pin, timeout_ms=3000, refresh_ms=1000)
+        self.idle = False
+        # refresh timer: blink arrow every 500ms and refresh clock in idle
+        self._refresh = Timer(-1)
+        self._refresh.init(period=500,
+                           mode=Timer.PERIODIC,
+                           callback=lambda t: self.handle_refresh())
 
     def handle_edge(self, pin):
-        # exit idle and clear display
-        self.oled.fill(0); self.oled.show()
-        if pin == self.encoder_pins[0]:
+        if self.selecting_mode and pin == self.encoder_pins[0]:
+            # rotate to change selection
             self.current_mode = (self.current_mode % 3) + 1
-            self.show_mode_menu()
-            if pin == self.encoder_pins[0]:
-                alarm_mode.enter()
-            elif pin == self.encoder_pins[3]:
-                clock_mode.enter()
-            elif pin == self.encoder_pins[7]:
-                fm_mode.enter()
-
-
+            self._draw_menu()
+        elif not self.selecting_mode and pin == self.encoder_pins[2]:
+            # direct FM entry on encoder C
+            fm_mode.enter()
+        self.idle = False
+        oled.fill(0); oled.show()
 
     def handle_button(self, pin):
-        # toggle 12/24h format when idle; otherwise cycle mode
-        if self.idle:
-            self.is_24h = not self.is_24h
-            self.show_time()
+        if pin != self.button_pin:
+            return
+        if not self.selecting_mode:
+            # start mode selection
+            self.selecting_mode = True
+            self.current_mode = 1
+            self._arrow_visible = True
+            self._draw_menu()
         else:
-            self.current_mode = (self.current_mode % 3) + 1
-            self.show_mode_menu()
+            # confirm selection
+            sel = self.current_mode
+            self.selecting_mode = False
+            oled.fill(0); oled.show()
+            if sel == 1:
+                alarm_mode.enter()
+            elif sel == 2:
+                clock_mode.enter()
+            else:
+                fm_mode.enter()
 
     def handle_timeout(self):
-        # enter idle: show time
-        self.show_time()
+        if self.selecting_mode:
+            # abort selection on timeout
+            self.selecting_mode = False
+            self.idle = True
+            self.show_time()
+        else:
+            # enter idle clock
+            self.idle = True
+            self.show_time()
 
     def handle_refresh(self):
-        # refresh clock display
-        self.show_time()
+        if self.selecting_mode:
+            # blink arrow
+            self._arrow_visible = not self._arrow_visible
+            self._draw_menu()
+        elif self.idle:
+            # refresh clock in idle
+            self.show_time()
 
     def show_time(self):
-        _, _, _, _, h, m, s, _ = rtc.datetime()
+        _,_,_,_,h,m,s,_ = rtc.datetime()
         if self.is_24h:
             ts = f"{h:02}:{m:02}:{s:02}"
         else:
             suffix = "AM" if h < 12 else "PM"
-            h12 = h % 12 or 12
-            ts = f"{h12:02}:{m:02}:{s:02} {suffix}"
+            hh = h % 12 or 12
+            ts = f"{hh:02}:{m:02}:{s:02} {suffix}"
         oled.fill(0)
         oled.text(ts, 0, 0)
         oled.show()
+        self.selecting_mode = False
 
-    def show_mode_menu(self):
-        """Display mode menu and dispatch based on selection: 1=Clock, 2=Alarm, 3=FM."""
+    def _draw_menu(self):
         oled.fill(0)
         oled.text("Which Mode?", 0, 0)
-        oled.text("1=Clk 2=Alm 3=FM", 0, 10)
+        oled.text("1=Alarm",    0, 10)
+        oled.text("2=Clock",    0, 20)
+        oled.text("3=FM",       0, 30)
+        if self._arrow_visible:
+            y = self.current_mode * 10
+            oled.text(">", 60, y)
         oled.show()
-        # dispatch to sub-modes
-        if self.current_mode == 1:
-            alarm_mode.enter()
-        elif self.current_mode == 2:
-            clock_mode.enter()
-        elif self.current_mode == 3:
-            fm_mode.enter()
 
     def __repr__(self):
-        """If idle, display current time on the OLED; then return state repr."""
-        # Side effect: update display if in idle mode
-        if getattr(self, 'idle', False):
+        if self.idle:
             self.show_time()
-        # Return a concise internal-state snapshot
-        return f"<IdleMode(mode={self.current_mode}, is_24h={self.is_24h})>"
+        fmt = '24h' if self.is_24h else '12h'
+        return f"<IdleMode(mode={self.current_mode}, format={fmt})>"
 
 # ——— Alarm Mode ———
 class AlarmMode(ModeBase):
