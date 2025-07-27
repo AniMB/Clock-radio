@@ -123,7 +123,7 @@ def increment_and_update_time(value_dict):
                 h += 1
                 if h >= 24:
                     h = 0
-
+        value_dict["Time"] = f"{h:02}:{m:02}:{s:02}"
         # Format time
         ampm = ""
         if value_dict.get("use24Hour", 1) == 0:
@@ -132,10 +132,10 @@ def increment_and_update_time(value_dict):
                 h = 12
             elif h > 12:
                 h -= 12
-
+        time_str = f"{h:02}:{m:02}:{s:02}"
         # Format and update the dictionary
-        value_dict["Time"] = f"{h:02}:{m:02}:{s:02}"
-        return value_dict["Time"], ampm
+       
+        return time_str, ampm
     except Exception as e:
         print(f"❌ Error incrementing time: {e}")
         return value_dict["Time"], ""
