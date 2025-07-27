@@ -399,4 +399,4 @@ function fetchDataAndUpdateUI() {
     });
 }
 
-setInterval(fetchDataAndUpdateUI, 4000);
+setInterval(fetchDataAndUpdateUI, 2000);
