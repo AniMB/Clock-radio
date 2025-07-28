@@ -10,7 +10,6 @@
   "use24Hour": 1,
   "mute": 0,
   "Time": "12:00:00",
-  "time_ampm": 0,
   "snooze": 5,
   "cancelAlarm": 0
 }

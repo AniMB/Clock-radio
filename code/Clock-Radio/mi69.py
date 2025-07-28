@@ -129,35 +129,41 @@ class ModeBase:
         self._timer.init(period=self.timeout_ms,
                          mode=Timer.PERIODIC,
                          callback=self._on_timeout)
+
         # universal volume controls
-        self.volume = 5
-        self.muted = False
-        encoder3A.irq(trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        self.volume = value_dict.get("volume", 5)
+        self.muted = bool(value_dict.get("mute", 0))
+
+        encoder3A.irq(trigger=Pin.IRQ_RISING | Pin.IRQ_FALLING,
                       handler=self._on_vol_rotate, hard=True)
         encoder3SW.irq(trigger=Pin.IRQ_FALLING,
                        handler=self._on_vol_button, hard=True)
 
     def _on_edge(self, pin):
         self.last_edge = ticks_ms(); self.handle_edge(pin)
+
     def _on_button(self, pin):
         self.last_edge = ticks_ms(); self.handle_button(pin)
+
     def _on_timeout(self, t):
         if ticks_diff(ticks_ms(), self.last_edge) >= self.timeout_ms:
             self.handle_timeout()
-    def handle_edge(self, pin):       pass
-    def handle_button(self, pin):     pass
-    def handle_timeout(self):         pass
-    def handle_refresh(self):         pass
+
+    def handle_edge(self, pin): pass
+    def handle_button(self, pin): pass
+    def handle_timeout(self): pass
+    def handle_refresh(self): pass
 
     # ——— Universal Volume Handlers ———
     def _on_vol_rotate(self, pin):
         """Handle encoder3 rotation: CW up, CCW down, auto-unmute."""
-        # only act on encoder3A edges
         if pin is not encoder3A:
             return
         a = encoder3A.value()
         b = encoder3B.value()
-        # direction: CW if A==B
         if a == b:
             if self.volume < 15:
                 self.volume += 1
@@ -166,6 +172,7 @@ class ModeBase:
                 self.volume -= 1
         self.muted = False
         self._show_volume()
+        self._save_volume_state()
 
     def _on_vol_button(self, pin):
         """Toggle mute on encoder3 switch press."""
@@ -173,20 +180,26 @@ class ModeBase:
             return
         self.muted = not self.muted
         self._show_volume()
+        self._save_volume_state()
 
     def _show_volume(self):
         """Draw a horizontal volume bar at the bottom of the display."""
-        # clear only bottom bar area
         bar_h = 5
         y0 = oled.height() - bar_h
         oled.fill_rect(0, y0, oled.width(), bar_h, 0)
-        # compute fill width
         fill_w = 0 if self.muted else int((self.volume / 15) * oled.width())
-        # filled portion
         oled.fill_rect(0, y0, fill_w, bar_h, 1)
-        # outline full bar
         oled.rect(0, y0, oled.width(), bar_h, 1)
         oled.show()
+
+    def _save_volume_state(self):
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        value_dict["volume"] = self.volume
+        value_dict["mute"] = int(self.muted)
+        handle_json.write_json()
+
 
 
 # ——— Idle Mode ———
@@ -202,6 +215,13 @@ class IdleMode(ModeBase):
         self._arrow_visible = True
         self.is_24h = True
         self.idle = False
+
+        # Load use24Hour from JSON
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        self.is_24h = bool(value_dict.get("use24Hour", 1))
+
         # refresh timer: blink arrow every 500ms and refresh clock in idle
         self._refresh = Timer(-1)
         self._refresh.init(period=500,
@@ -223,11 +243,14 @@ class IdleMode(ModeBase):
         if pin != self.button_pin:
             return
         if not self.selecting_mode:
-            # start mode selection
-            self.selecting_mode = True
-            self.current_mode = 1
-            self._arrow_visible = True
-            self._draw_menu()
+            # toggle 12h/24h format
+            self.is_24h = not self.is_24h
+            from config.resources import handle_json
+            handle_json.read_json()
+            value_dict = handle_json.json_object
+            value_dict["use24Hour"] = int(self.is_24h)
+            handle_json.write_json()
+            self.show_time()
         else:
             # confirm selection
             sel = self.current_mode
@@ -290,6 +313,7 @@ class IdleMode(ModeBase):
         fmt = '24h' if self.is_24h else '12h'
         return f"<IdleMode(mode={self.current_mode}, format={fmt})>"
 
+
 # ——— Alarm Mode ———
 class AlarmMode(ModeBase):
     """Alarm setter: hour/minute with inactivity or confirm; toggle on/off via button; rings grey noise; snooze/disable on press."""
@@ -300,18 +324,20 @@ class AlarmMode(ModeBase):
         self.minute = 0
         self.setting = False
         self.enabled = False  # alarm armed
-        # noise radio for alarm ring
         self._alarm_ringing = False
         self._ring_timer = None
-        # snooze timer
         self._snooze_timer = None
-        # radio instance for noise
         self._noise_i2c = I2C(1, sda=Pin(4), scl=Pin(5), freq=100000)
         self._noise_radio = RDA5807M(self._noise_i2c)
-        # rebind button to detect long press and release
         toggle_button.irq(trigger=Pin.IRQ_FALLING|Pin.IRQ_RISING,
                            handler=self._on_alarm_button,
                            hard=True)
+
+        # Load snooze duration from JSON
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        self.snooze_minutes = value_dict.get("snooze", 5)
 
     def enter(self):
         _, _, _, _, h, m, _, _ = rtc.datetime()
@@ -332,25 +358,18 @@ class AlarmMode(ModeBase):
     def _on_alarm_button(self, pin):
         now = ticks_ms()
         if pin.value() == 0:
-            # press start
             self._press_time = now
             return
-        # release event
         duration = ticks_diff(now, getattr(self, '_press_time', now))
         if self._alarm_ringing:
-            # stop current ring
             self._stop_ring()
-            # long hold disables alarm + snooze
             if duration >= self.timeout_ms:
                 self.enabled = False
-            # snooze for 9 minutes
             self._snooze()
         elif not self.setting:
-            # toggle alarm armed
             self.enabled = not self.enabled
             self._show_status()
         else:
-            # during setting, advance stage or finalize
             self.handle_button_during_setting()
 
     def handle_button_during_setting(self):
@@ -381,6 +400,16 @@ class AlarmMode(ModeBase):
         oled.fill(0)
         oled.show()
         print(f"Alarm set: {self.hour:02}:{self.minute:02}")
+
+        # Update JSON dictionary with new alarm time
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        value_dict["alarm_hour"] = self.hour
+        value_dict["alarm_minute"] = self.minute
+        value_dict["alarm_ampm"] = 0  # assuming 24-hour for now
+        handle_json.write_json()
+
         if self.enabled:
             self.start_ring()
         else:
@@ -390,7 +419,6 @@ class AlarmMode(ModeBase):
         if self._alarm_ringing:
             return
         self._alarm_ringing = True
-        # random noise every 200ms
         self._ring_timer = Timer(-1)
         self._ring_timer.init(period=200, mode=Timer.PERIODIC,
                               callback=lambda t: self._ring_noise())
@@ -409,11 +437,10 @@ class AlarmMode(ModeBase):
         idle.handle_timeout()
 
     def _snooze(self):
-        # schedule re-ring in 9 minutes
         if self._snooze_timer:
             self._snooze_timer.deinit()
         self._snooze_timer = Timer(-1)
-        self._snooze_timer.init(period=9 * 60 * 1000,
+        self._snooze_timer.init(period=self.snooze_minutes * 60 * 1000,
                                  mode=Timer.ONE_SHOT,
                                  callback=lambda t: self.start_ring())
 
@@ -432,6 +459,8 @@ class AlarmMode(ModeBase):
 
     def __repr__(self):
         return f"<AlarmMode(h={self.hour},m={self.minute},en={self.enabled},ringing={self._alarm_ringing})>"
+
+
 
 # ——— Clock Mode ———
 class ClockMode(ModeBase):
@@ -508,12 +537,19 @@ class ClockMode(ModeBase):
 
 # ——— FM Mode ———
 class FMMode(ModeBase):
-    """FM tuner: play fixed 101.9 MHz on entry; exit on shared button or timeout."""
+    """FM tuner: play frequency based on nowplaying index in web_data.json; exit on shared button or timeout."""
     def __init__(self, encoder_pin, button_pin):
-        # bind the shared button to exit FM
         super().__init__([encoder_pin], button_pin=button_pin, timeout_ms=3000)
-        self.freq = 101.9
+        self.freq = 101.9  # default
         self.setting = True
+
+        # Load frequency from JSON using nowplaying
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        nowplaying = value_dict.get("nowplaying", 1)
+        self.freq = value_dict.get(f"freq{nowplaying}", 101.9)
+
         # initialize RDA5807M tuner
         self.i2c = I2C(1, sda=Pin(4), scl=Pin(5), freq=100000)
         self.radio = RDA5807M(self.i2c)
@@ -530,32 +566,28 @@ class FMMode(ModeBase):
         pass
 
     def handle_button(self, pin):
-        # pressing shared button exits FM mode
         if pin == self.button_pin and self.setting:
             self.setting = False
             oled.fill(0); oled.show()
             idle.handle_timeout()
 
     def handle_timeout(self):
-        # inactivity exits FM mode
         if self.setting:
             self.setting = False
             oled.fill(0); oled.show()
             idle.handle_timeout()
 
     def _show(self):
-        # render FM mode label and fixed frequency
         oled.fill(0)
         oled.text("FM Mode",       0,  0)
-        oled.text(f"{self.freq:.1f} MHz", 0, 10)
+        oled.text(f"{self.freq:.1f} MHz", 0, 10)
         oled.show()
 
     def __repr__(self):
-        # display time and frequency
         _, _, _, _, h, m, s, _ = rtc.datetime()
         oled.fill(0)
         oled.text(f"Time: {h:02}:{m:02}:{s:02}", 0,  0)
-        oled.text(f"Freq: {self.freq:.1f} MHz", 0, 10)
+        oled.text(f"Freq: {self.freq:.1f} MHz", 0, 10)
         oled.show()
         return f"<FMMode(time={h:02}:{m:02}:{s:02}, freq={self.freq:.1f}MHz)>"
 
