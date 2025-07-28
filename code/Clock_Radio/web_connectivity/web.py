@@ -1,7 +1,7 @@
 import socket
 import json
 
-from config.resources import _lock, json_obj
+from config.resources import _lock
 
 
 class WebServer:
@@ -19,7 +19,7 @@ class WebServer:
                     return data
             
             except Exception as e:
-                print(f"Error reading from {json_obj}: {e}")
+                print(f"Error reading from {self.__jfname}: {e}")
                 return {}
             
     
@@ -229,7 +229,7 @@ class WebServer:
                             choice = choice_data.get("choice", choice_data.get("nowplaying"))
                             print(f"Choice updated to {choice}")
                             current_data = self.__read_json()
-                            current_data["choice"] = choice
+                            current_data["nowplaying"] = choice
                             with _lock:
                                 self.__update_json(current_data)
                             conn.send("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nCHOICE UPDATED")

@@ -321,11 +321,10 @@ function sendUpdate() {
     freq2: freq2.value,
     freq3: freq3.value,
     volume: volumeSlider.value,
-    nowplaying: choice,
+    nowplaying: choice ? choice : 1,  // Default to choice 1 if none selected
     use24Hour: use24Hour ? 1 : 0,
     mute: muteButton.value,
     Time: currentTime,
-    time_ampm: document.getElementById("time_ampm").value,
     snooze: snoozeButton.value,
     cancelAlarm: cancelAlarmButton.value
   }

@@ -2,45 +2,25 @@ import json
 import os
 import sys
 import framebuf
+import time
 
 from machine import *
 from utime import *
 from _thread import *
 from config.resources import *
 from web_connectivity.web import WebServer
-from config.resources import _lock, json_obj
+from config.resources import _lock
 from network import WLAN, AP_IF
-from libraries.ssd1306 import SSD1306_SPI
+from libraries.display import oled
+from libraries.radio import Radio
 
 
 
-# Define columns and rows of the oled display. These numbers are the standard values. 
-SCREEN_WIDTH = 128 #number of columns
-SCREEN_HEIGHT = 64 #number of rows
+    
 
 
-# Initialize I/O pins associated with the oled display SPI interface
 
-spi_sck = Pin(18) # sck stands for serial clock; always be connected to SPI SCK pin of the Pico
-spi_sda = Pin(19) # sda stands for serial data;  always be connected to SPI TX pin of the Pico; this is the MOSI
-spi_res = Pin(21) # res stands for reset; to be connected to a free GPIO pin
-spi_dc  = Pin(20) # dc stands for data/command; to be connected to a free GPIO pin
-spi_cs  = Pin(17) # chip select; to be connected to the SPI chip select of the Pico 
 
-#
-# SPI Device ID can be 0 or 1. It must match the wiring. 
-#
-SPI_DEVICE = 0 # Because the peripheral is connected to SPI 0 hardware lines of the Pico
-
-#
-# initialize the SPI interface for the OLED display
-#
-oled_spi = SPI( SPI_DEVICE, baudrate= 100000, sck= spi_sck, mosi= spi_sda )
-
-#
-# Initialize the display
-#
-oled = SSD1306_SPI( SCREEN_WIDTH, SCREEN_HEIGHT, oled_spi, spi_dc, spi_res, spi_cs, True )
 
 
 """Make a read json write json function that uses a lock to ensure thread safety. This will be for the main.py file."""
@@ -149,21 +129,23 @@ def pico_runner():
     if not handle_json.read_json():
         handle_json.write_json()
     
+    
+    handle_json.read_json()
+    value_dict = handle_json.json_object
+
+    # Initial setup
+    fm_radio = Radio(
+        value_dict[f"freq{value_dict['nowplaying']}"],
+        value_dict["volume"],
+        value_dict["mute"]
+    )
+
     while True:
-        # Only read JSON when needed, not every loop
-        handle_json.read_json()  # Read the JSON data into value_dict
+        handle_json.read_json()
         value_dict = handle_json.json_object
-        
 
-        '''User Code begins here'''
-
-        # Example of how to use the value_dict
         
-        # Simulate some processing or handling of the data
-        # Update time in the JSON object
-        
-        
-        
+            
 
         time, time_ampm=increment_and_update_time(value_dict)
         
