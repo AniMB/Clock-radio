@@ -391,44 +391,76 @@ class AlarmMode(ModeBase):
 
 # ——— Clock Mode ———
 class ClockMode(ModeBase):
+    """Clock setter: spin B for hour, button B to enter minute stage; inactivity confirms and returns to idle."""
     def __init__(self, encoder_pin):
-        self.stage=0; self.hour=0; self.minute=0; self.setting=False
-        super().__init__([encoder_pin], timeout_ms=3000)
+        super().__init__([encoder_pin], button_pin=encoder_pin, timeout_ms=3000)
+        self.stage = 1      # 1 = hour, 2 = minute
+        self.hour = 0
+        self.minute = 0
+        self.setting = False
 
     def enter(self):
+        # load current time
         _, _, _, _, h, m, _, _ = rtc.datetime()
-        self.hour, self.minute, self.stage, self.setting = h, m, 0, True
+        self.hour = h
+        self.minute = m
+        self.stage = 1
+        self.setting = True
         self.last_edge = ticks_ms()
-        self.display()
+        self._display()
 
     def handle_edge(self, pin):
-        if not self.setting: return
-        if self.stage==0:
-            self.hour=(self.hour+1)%24
+        # only active while setting and for encoder B
+        if not self.setting or pin != self.encoder_pins[0]:
+            return
+        # adjust hour or minute
+        if self.stage == 1:
+            self.hour = (self.hour + 1) % 24
         else:
-            self.minute=(self.minute+1)%60
-        self.display()
+            self.minute = (self.minute + 1) % 60
+        self.last_edge = ticks_ms()
+        self._display()
 
     def handle_button(self, pin):
-        if self.setting and pin.value()==0:
-            self.setting=False; oled.fill(0); oled.show(); print(f"Clock set: {self.hour:02}:{self.minute:02}")
+        # button press advances to minute stage if in hour
+        if not self.setting or pin != self.button_pin:
+            return
+        if self.stage == 1:
+            # go to minute selection
+            self.stage = 2
+            self.last_edge = ticks_ms()
+            self._display()
+        else:
+            # manual confirm minute
+            self._finalize()
 
     def handle_timeout(self):
-        if self.stage==0:
-            self.stage=1; self.last_edge=ticks_ms(); self.display()
-        else:
-            self.setting=False; oled.fill(0); oled.show(); print(f"Clock set: {self.hour:02}:{self.minute:02}")
+        # inactivity confirms and exits
+        if not self.setting:
+            return
+        self._finalize()
 
-    def display(self):
+    def _display(self):
         oled.fill(0)
-        if self.stage==0:
-            oled.text("Set Clock Hour:",0,0); oled.text(f"{self.hour:02}:00",0,10)
+        if self.stage == 1:
+            oled.text("Set Clock Hour:", 0, 0)
+            oled.text(f"{self.hour:02}:00",     0, 10)
         else:
-            oled.text("Set Clock Min:",0,0); oled.text(f":{self.minute:02}",0,10)
+            oled.text("Set Clock Min :", 0, 0)
+            oled.text(f":{self.minute:02}",    0, 10)
         oled.show()
 
+    def _finalize(self):
+        # finalize and return to idle
+        self.setting = False
+        oled.fill(0)
+        oled.show()
+        # set RTC if desired, else just log
+        print(f"Clock set: {self.hour:02}:{self.minute:02}")
+        idle.handle_timeout()
+
     def __repr__(self):
-        return f"<ClockMode(stage={self.stage}, hour={self.hour}, min={self.minute})>"
+        return f"<ClockMode(hour={self.hour}, minute={self.minute})>"
 
 # ——— FM Mode ———
 class FMMode(ModeBase):
