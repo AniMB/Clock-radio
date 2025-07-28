@@ -609,7 +609,22 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-        
+        # Sync volume and mute (only read, save happens in ModeBase)
+        idle.volume = value_dict.get("volume", 5)
+        idle.muted = bool(value_dict.get("mute", 0))
+
+        # Clock format
+        idle.is_24h = bool(value_dict.get("use24Hour", 1))
+
+        # Alarm time
+        alarm_mode.hour = value_dict.get("alarm_hour", 0)
+        alarm_mode.minute = value_dict.get("alarm_minute", 0)
+        alarm_mode.snooze_minutes = value_dict.get("snooze", 5)
+
+        # FM frequency selection
+        nowplaying = value_dict.get("nowplaying", 1)
+        fm_mode.freq = value_dict.get(f"freq{nowplaying}", 101.9)
+        fm_mode.radio.set_frequency(fm_mode.freq)
 
 
 
@@ -619,8 +634,12 @@ def pico_runner():
 
         '''User Code ends here'''
 
+        '''Confused regarding the below code'''
+        #handle_json.write_json()    
 
-        handle_json.write_json()
+
+
+
         sleep_ms(0) # Yield control to the web server to be added when reading or writing to the JSON file
         
 
