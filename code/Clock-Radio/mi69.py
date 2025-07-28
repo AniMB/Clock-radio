@@ -464,70 +464,54 @@ class ClockMode(ModeBase):
 
 # ——— FM Mode ———
 class FMMode(ModeBase):
-    """FM mode: tune TEA5767, volume via encoder, display freq and time on repr."""
-    def __init__(self, freq_enc_pin):
-        # only frequency encoder used here
+    """FM tuner: play fixed 101.9 MHz on entry; exit on shared button or timeout."""
+    def __init__(self, encoder_pin, button_pin):
+        # bind the shared button to exit FM
+        super().__init__([encoder_pin], button_pin=button_pin, timeout_ms=3000)
         self.freq = 101.9
-        self.volume = 5
-        # I2C for TEA5767
+        self.setting = True
+        # initialize RDA5807M tuner
         self.i2c = I2C(1, sda=Pin(4), scl=Pin(5), freq=100000)
-        self.radio = TEA5767(self.i2c)
-        super().__init__([freq_enc_pin], timeout_ms=3000)
+        self.radio = RDA5807M(self.i2c)
+        self.radio.set_frequency(self.freq)
+        self._show()
 
     def enter(self):
         self.setting = True
         self.last_edge = ticks_ms()
-        self.radio.set_frequency(self.freq)
-        oled.fill(0)
-        oled.text("FM Mode", 0, 0)
-        oled.text(f"{self.freq:.1f} MHz", 0,10)
-        oled.text(f"Vol: {self.volume}", 0,20)
-        oled.show()
+        self._show()
 
     def handle_edge(self, pin):
-        """Rotate encoder to step FM frequency, with out-of-range feedback."""
-        if pin != self.encoder_pins[0]:
-            return
-        from utime import ticks_ms
-        self.last_edge = ticks_ms()
-        # compute next freq
-        new_freq = round(self.freq + 0.1, 1)
-        # check valid FM band
-        if new_freq < 88.0 or new_freq > 108.0:
-            oled.fill(0)
-            oled.text("Invalid freq", 0, 0)
-            oled.show()
-            return
-        self.freq = new_freq
-        self.radio.set_frequency(self.freq)
-        # update display
-        oled.fill(0)
-        oled.text("FM Mode", 0, 0)
-        oled.text(f"{self.freq:.1f}MHz", 0, 10)
-        oled.text(f"Vol: {self.volume}", 0, 20)
-        oled.show()
+        # ignore rotary in FM mode
+        pass
 
     def handle_button(self, pin):
-        # exit FM
-        if pin.value() == 0:
+        # pressing shared button exits FM mode
+        if pin == self.button_pin and self.setting:
             self.setting = False
-            oled.fill(0)
-            oled.show()
+            oled.fill(0); oled.show()
             idle.handle_timeout()
 
     def handle_timeout(self):
-        if getattr(self, 'setting', False):
+        # inactivity exits FM mode
+        if self.setting:
             self.setting = False
-            oled.fill(0)
-            oled.show()
+            oled.fill(0); oled.show()
             idle.handle_timeout()
 
+    def _show(self):
+        # render FM mode label and fixed frequency
+        oled.fill(0)
+        oled.text("FM Mode",       0,  0)
+        oled.text(f"{self.freq:.1f} MHz", 0, 10)
+        oled.show()
+
     def __repr__(self):
-        # display time
+        # display time and frequency
         _, _, _, _, h, m, s, _ = rtc.datetime()
         oled.fill(0)
-        oled.text(f"Time: {h:02}:{m:02}:{s:02}", 0, 0)
-        oled.text(f"Freq: {self.freq:.1f}MHz", 0,10)
+        oled.text(f"Time: {h:02}:{m:02}:{s:02}", 0,  0)
+        oled.text(f"Freq: {self.freq:.1f} MHz", 0, 10)
         oled.show()
         return f"<FMMode(time={h:02}:{m:02}:{s:02}, freq={self.freq:.1f}MHz)>"
 
