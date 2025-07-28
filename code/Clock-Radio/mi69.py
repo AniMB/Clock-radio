@@ -292,29 +292,36 @@ class IdleMode(ModeBase):
 
 # ——— Alarm Mode ———
 class AlarmMode(ModeBase):
-    """Alarm setter: spin A for hour, button A to enter minute stage, inactivity confirms setting; button toggles alarm on/off."""
+    """Alarm setter: hour/minute with inactivity or confirm; toggle on/off via button; rings grey noise; snooze/disable on press."""
     def __init__(self, encoder_pin):
-        super().__init__([encoder_pin], timeout_ms=3000)
-        self.stage = 1        # 1 = hour, 2 = minute
+        super().__init__([encoder_pin], button_pin=toggle_button, timeout_ms=3000)
+        self.stage = 1
         self.hour = 0
         self.minute = 0
         self.setting = False
-        self.enabled = False  # alarm on/off
+        self.enabled = False  # alarm armed
+        # noise radio for alarm ring
+        self._alarm_ringing = False
+        self._ring_timer = None
+        # snooze timer
+        self._snooze_timer = None
+        # radio instance for noise
+        self._noise_i2c = I2C(1, sda=Pin(4), scl=Pin(5), freq=100000)
+        self._noise_radio = RDA5807M(self._noise_i2c)
+        # rebind button to detect long press and release
+        toggle_button.irq(trigger=Pin.IRQ_FALLING|Pin.IRQ_RISING,
+                           handler=self._on_alarm_button,
+                           hard=True)
 
     def enter(self):
-        # load current time
         _, _, _, _, h, m, _, _ = rtc.datetime()
-        self.hour = h
-        self.minute = m
-        self.stage = 1
-        self.setting = True
+        self.hour, self.minute, self.stage, self.setting = h, m, 1, True
         self.last_edge = ticks_ms()
         self._display()
 
     def handle_edge(self, pin):
         if not self.setting or pin != self.encoder_pins[0]:
             return
-        # adjust hour or minute
         if self.stage == 1:
             self.hour = (self.hour + 1) % 24
         else:
@@ -322,29 +329,41 @@ class AlarmMode(ModeBase):
         self.last_edge = ticks_ms()
         self._display()
 
-    def handle_button(self, pin):
-        # toggle alarm on/off if not in setting
-        if not self.setting and pin == self.button_pin:
+    def _on_alarm_button(self, pin):
+        now = ticks_ms()
+        if pin.value() == 0:
+            # press start
+            self._press_time = now
+            return
+        # release event
+        duration = ticks_diff(now, getattr(self, '_press_time', now))
+        if self._alarm_ringing:
+            # stop current ring
+            self._stop_ring()
+            # long hold disables alarm + snooze
+            if duration >= self.timeout_ms:
+                self.enabled = False
+            # snooze for 9 minutes
+            self._snooze()
+        elif not self.setting:
+            # toggle alarm armed
             self.enabled = not self.enabled
             self._show_status()
-            return
-        # button A advances to minute stage or confirms
-        if not self.setting or pin != self.button_pin:
-            return
+        else:
+            # during setting, advance stage or finalize
+            self.handle_button_during_setting()
+
+    def handle_button_during_setting(self):
         if self.stage == 1:
-            # move to minute selection
             self.stage = 2
             self.last_edge = ticks_ms()
             self._display()
         else:
-            # manual confirm in minute stage
             self._finalize()
 
     def handle_timeout(self):
-        # inactivity triggers finalize at any stage
-        if not self.setting:
-            return
-        self._finalize()
+        if self.setting:
+            self._finalize()
 
     def _display(self):
         oled.fill(0)
@@ -355,39 +374,64 @@ class AlarmMode(ModeBase):
             oled.text("Set Alarm Min :", 0, 0)
             oled.text(f":{self.minute:02}",    0, 10)
         oled.show()
-        # also show current on/off status
         self._draw_status()
 
     def _finalize(self):
-        # finish setting and return to idle
         self.setting = False
         oled.fill(0)
         oled.show()
-        # print for debugging
         print(f"Alarm set: {self.hour:02}:{self.minute:02}")
+        if self.enabled:
+            self.start_ring()
+        else:
+            idle.handle_timeout()
+
+    def start_ring(self):
+        if self._alarm_ringing:
+            return
+        self._alarm_ringing = True
+        # random noise every 200ms
+        self._ring_timer = Timer(-1)
+        self._ring_timer.init(period=200, mode=Timer.PERIODIC,
+                              callback=lambda t: self._ring_noise())
+
+    def _ring_noise(self):
+        bits = getrandbits(8)
+        freq = 88.0 + (bits / 255) * 20.0
+        self._noise_radio.set_frequency(freq)
+
+    def _stop_ring(self):
+        if self._ring_timer:
+            self._ring_timer.deinit()
+        self._alarm_ringing = False
+        oled.fill(0)
+        oled.show()
         idle.handle_timeout()
 
+    def _snooze(self):
+        # schedule re-ring in 9 minutes
+        if self._snooze_timer:
+            self._snooze_timer.deinit()
+        self._snooze_timer = Timer(-1)
+        self._snooze_timer.init(period=9 * 60 * 1000,
+                                 mode=Timer.ONE_SHOT,
+                                 callback=lambda t: self.start_ring())
+
     def _show_status(self):
-        # display alarm on/off at bottom-right
-        bar_h = 10
-        y0 = oled.height() - bar_h
-        oled.fill_rect(oled.width() - 60, y0, 60, bar_h, 0)
-        status = "ALM ON" if self.enabled else "ALM OFF"
-        x = oled.width() - len(status) * 8
-        oled.text(status, x, y0)
+        st = "ALM ON" if self.enabled else "ALM OFF"
+        w, h = oled.width(), oled.height()
+        oled.fill_rect(w - 60, h - 10, 60, 10, 0)
+        oled.text(st, w - len(st) * 8, h - 10)
         oled.show()
 
     def _draw_status(self):
-        # called during display to show status
-        status = "ON" if self.enabled else "OFF"
-        x = oled.width() - 20
-        y = oled.height() - 10
-        oled.text(status, x, y)
+        st = "ON" if self.enabled else "OFF"
+        w, h = oled.width(), oled.height()
+        oled.text(st, w - 20, h - 10)
         oled.show()
 
     def __repr__(self):
-        return f"<AlarmMode(hour={self.hour}, minute={self.minute}, enabled={self.enabled})>"(self):
-        return f"<AlarmMode(hour={self.hour}, minute={self.minute})>"
+        return f"<AlarmMode(h={self.hour},m={self.minute},en={self.enabled},ringing={self._alarm_ringing})>"
 
 # ——— Clock Mode ———
 class ClockMode(ModeBase):
@@ -516,6 +560,10 @@ class FMMode(ModeBase):
         return f"<FMMode(time={h:02}:{m:02}:{s:02}, freq={self.freq:.1f}MHz)>"
 
 
+idle=IdleMode(encoder_pins=[encoder2SW,encoder1A,encoder1B],button_pin=button)
+alarm_mode = AlarmMode(encoder_pins=[encoder2SW,encoder1A,encoder1B],button_pin=button)
+clock_mode = ClockMode(encoder_pin=[encoder2A,encoder2B,encoder4SW],button_pin=button)
+fm_mode = FMMode(button_pin=button)
 
 
 
@@ -529,10 +577,7 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-        idle=IdleMode(encoder_pins=encoder,button_pin=button)
-        alarm_mode = AlarmMode(encoder1A)
-        clock_mode = ClockMode(encoder2A)
-        fm_mode    = FMMode(encoder3A)
+        
 
 
 
