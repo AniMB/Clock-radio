@@ -292,40 +292,102 @@ class IdleMode(ModeBase):
 
 # ——— Alarm Mode ———
 class AlarmMode(ModeBase):
+    """Alarm setter: spin A for hour, button A to enter minute stage, inactivity confirms setting; button toggles alarm on/off."""
     def __init__(self, encoder_pin):
-        self.stage=0; self.hour=0; self.minute=0; self.setting=False
         super().__init__([encoder_pin], timeout_ms=3000)
+        self.stage = 1        # 1 = hour, 2 = minute
+        self.hour = 0
+        self.minute = 0
+        self.setting = False
+        self.enabled = False  # alarm on/off
 
     def enter(self):
+        # load current time
         _, _, _, _, h, m, _, _ = rtc.datetime()
-        self.hour, self.minute, self.stage, self.setting = h, m, 0, True
+        self.hour = h
+        self.minute = m
+        self.stage = 1
+        self.setting = True
         self.last_edge = ticks_ms()
-        self.display()
+        self._display()
 
     def handle_edge(self, pin):
-        if not self.setting: return
-        if self.stage==0:
-            self.hour=(self.hour+1)%24
+        if not self.setting or pin != self.encoder_pins[0]:
+            return
+        # adjust hour or minute
+        if self.stage == 1:
+            self.hour = (self.hour + 1) % 24
         else:
-            self.minute=(self.minute+1)%60
-        self.display()
+            self.minute = (self.minute + 1) % 60
+        self.last_edge = ticks_ms()
+        self._display()
+
+    def handle_button(self, pin):
+        # toggle alarm on/off if not in setting
+        if not self.setting and pin == self.button_pin:
+            self.enabled = not self.enabled
+            self._show_status()
+            return
+        # button A advances to minute stage or confirms
+        if not self.setting or pin != self.button_pin:
+            return
+        if self.stage == 1:
+            # move to minute selection
+            self.stage = 2
+            self.last_edge = ticks_ms()
+            self._display()
+        else:
+            # manual confirm in minute stage
+            self._finalize()
 
     def handle_timeout(self):
-        if self.stage==0:
-            self.stage=1; self.last_edge=ticks_ms(); self.display()
-        else:
-            self.setting=False; oled.fill(0); oled.show(); print(f"Alarm set: {self.hour:02}:{self.minute:02}")
+        # inactivity triggers finalize at any stage
+        if not self.setting:
+            return
+        self._finalize()
 
-    def display(self):
+    def _display(self):
         oled.fill(0)
-        if self.stage==0:
-            oled.text("Set Alarm Hour:",0,0); oled.text(f"{self.hour:02}:00",0,10)
+        if self.stage == 1:
+            oled.text("Set Alarm Hour:", 0, 0)
+            oled.text(f"{self.hour:02}:00",     0, 10)
         else:
-            oled.text("Set Alarm Min:" ,0,0); oled.text(f":{self.minute:02}",0,10)
+            oled.text("Set Alarm Min :", 0, 0)
+            oled.text(f":{self.minute:02}",    0, 10)
+        oled.show()
+        # also show current on/off status
+        self._draw_status()
+
+    def _finalize(self):
+        # finish setting and return to idle
+        self.setting = False
+        oled.fill(0)
+        oled.show()
+        # print for debugging
+        print(f"Alarm set: {self.hour:02}:{self.minute:02}")
+        idle.handle_timeout()
+
+    def _show_status(self):
+        # display alarm on/off at bottom-right
+        bar_h = 10
+        y0 = oled.height() - bar_h
+        oled.fill_rect(oled.width() - 60, y0, 60, bar_h, 0)
+        status = "ALM ON" if self.enabled else "ALM OFF"
+        x = oled.width() - len(status) * 8
+        oled.text(status, x, y0)
+        oled.show()
+
+    def _draw_status(self):
+        # called during display to show status
+        status = "ON" if self.enabled else "OFF"
+        x = oled.width() - 20
+        y = oled.height() - 10
+        oled.text(status, x, y)
         oled.show()
 
     def __repr__(self):
-        return f"<AlarmMode(stage={self.stage}, hour={self.hour}, min={self.minute})>"
+        return f"<AlarmMode(hour={self.hour}, minute={self.minute}, enabled={self.enabled})>"(self):
+        return f"<AlarmMode(hour={self.hour}, minute={self.minute})>"
 
 # ——— Clock Mode ———
 class ClockMode(ModeBase):
