@@ -1,7 +1,7 @@
 {
   "alarm_hour": 0,
   "alarm_minute": 0,
-  "alarm_ampm": 0,
+  "alarm_ampm": "",
   "freq1": 101.9,
   "freq2": 101.9,
   "freq3": 101.9,

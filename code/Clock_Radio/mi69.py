@@ -85,6 +85,9 @@ class JsonHandler:
 
             return False  
 
+
+
+
 #helper function to increase the current time in a specific format
 def increment_and_update_time(value_dict):
     try:
@@ -122,6 +125,9 @@ def increment_and_update_time(value_dict):
 
 
 
+
+# Initial setup
+
 button=Pin(0, Pin.IN, Pin.PULL_UP)
 
 
@@ -129,7 +135,7 @@ handle_json = JsonHandler()
 handle_json.read_json()
 value_dict = handle_json.json_object
 
-# Initial setup
+
 fm_radio = Radio(
     value_dict[f"freq{value_dict['nowplaying']}"],
     value_dict["volume"],
@@ -145,7 +151,8 @@ def draw_clock(time_str, ampm):
     if stamp == _last_drawn:
         return
     _last_drawn = stamp
-
+    global _update_tick_due
+    _update_tick_due=False
     oled.fill(0)
     oled.text(time_str, 0, 0)
     if ampm:
@@ -163,25 +170,123 @@ def on_timeout(t):            # MUST accept the timer arg
 timer = Timer(-1)
 timer.init(period=1000, mode=Timer.PERIODIC, callback=on_timeout)
 
-def alarm(value_dict):
-    timestr = value_dict["Time"].strip()
 
-    # Parse time string safely
-    h, m, _ = map(int, timestr.split(":"))
+_snoozeflag=False
+_alarmflag=False
+_Radioflag=False
 
-    alarm_h=value_dict["alarm_hour"]
-    alarm_m=value_dict["alarm_minute"]
-    alarm_ampm=value_dict["alarm_ampm"]
 
-    if value_dict["use24Hour"]:
-        if alarm_h==h and alarm_m==m:
-            return True
-        else: return False
-    else:
-        alarm_h = alarm_h + 12 if value_dict["time_ampm"] == "PM" else alarm_h
-        if alarm_h==h and alarm_m==m:
-            return True
+class Alarm:
+    alarm_h=0
+    alarm_m=0
+
+    def __init__(self): pass
+
+    
+
+
+    @staticmethod
+    def to_24h(hour: int, minute: int, am_pm: str) -> tuple[int, int]:
+        """
+        Convert 12-hour (hour, minute, am_pm) to 24-hour (h24, m).
+
+        Parameters
+        ----------
+        hour : int
+            1..12 inclusive
+        minute : int
+            0..59 inclusive
+        am_pm : str
+            "AM" or "PM" (case-insensitive)
+
+        Returns
+        -------
+        (h24, m) : tuple[int, int]
+            h24 in 0..23, m in 0..59
+
+        Raises
+        ------
+        ValueError if inputs are invalid.
+        """
+        if not isinstance(am_pm, str):
+            raise ValueError("am_pm must be a string 'AM' or 'PM'.")
+
+        tag = am_pm.strip().upper()
+        if tag not in ("AM", "PM"):
+            raise ValueError("am_pm must be 'AM' or 'PM' (case-insensitive).")
+
+        if not (1 <= int(hour) <= 12):
+            raise ValueError("hour must be in 1..12 for 12-hour input.")
+        if not (0 <= int(minute) <= 59):
+            raise ValueError("minute must be in 0..59.")
+
+        h = int(hour)
+        m = int(minute)
+
+        if tag == "AM":
+            h24 = 0 if h == 12 else h
+        else:  # "PM"
+            h24 = 12 if h == 12 else h + 12
+
+        return h24, m
+
+
+
+    def sync_from_dict(self,value_dict):
         
+        self.snooze_minutes = value_dict.get("snooze", 5)
+        self.alarm_hour = value_dict.get("alarm_hour", 0)
+        self.alarm_minute = value_dict.get("alarm_minute", 0)
+        self.alarm_ampm=value_dict.get("alarm_ampm","AM")
+        self.alarm_enabled = not bool(value_dict.get("cancelalarm", 0))  # ← Add this line
+
+        if not value_dict["use24Hour"]:
+            self.alarm_hour,self.alarm_minute=self.to_24h(self.alarm_hour,self.alarm_minute,self.alarm_ampm)
+
+        Alarm.alarm_h=self.alarm_hour
+        Alarm.alarm_m=self.alarm_minute
+
+
+    
+
+
+    def is_alarm(self,value_dict):
+        if not self.alarm_enabled :
+            return False
+
+        _, _, _, _, h, m, _, _ = rtc.datetime()
+        # self.alarm_hour/minute are already in 24h from sync_from_dict()
+        return (self.alarm_hour == h) and (self.alarm_minute == m)
+        
+    def on_snooze(self):
+        _snoozeflag=True
+        
+        
+        self.alarm_minute=Alarm.alarm_m+self.snooze_minutes
+        if self.alarm_minute>=60:
+            self.alarm_hour=(self.alarm_hour+self.snooze_minutes)%12
+        try:
+            fm_radio.SetMute(True)
+            fm_radio.ProgramRadio()
+        except Exception:
+            pass
+    
+    
+    def stop_alarm(self):
+        _snoozeflag=False
+        _alarmflag=False
+        try:
+            fm_radio.SetMute(True)
+            fm_radio.ProgramRadio()
+        except Exception:
+            pass
+       
+alarm=Alarm()
+def on_stop():
+    global alarm
+    alarm.stop_alarm()
+    # No need to delete; just reassign
+    alarm = Alarm()
 
 
 
@@ -209,7 +314,12 @@ def pico_runner():
         value_dict = handle_json.json_object
         
         
-        if alarm(value_dict):
+        if not _snoozeflag:
+            alarm.sync_from_dict(value_dict)
+
+        if alarm.is_alarm(value_dict):
+            _alarmflag=True
+            _Radioflag=False
             fm_radio.SetFrequency(100.1)
             fm_radio.SetVolume(100)
             fm_radio.ProgramRadio()
@@ -220,7 +330,7 @@ def pico_runner():
         draw_clock(time_str, ampm)
         
 
-        if value_dict.get("radioflag", 1):
+        if _Radioflag and not _alarmflag:
             fm_radio.ProgramRadio()
             idx = max(1, min(3, int(value_dict.get("nowplaying", 1))))
             freq = float(value_dict.get(f"freq{idx}", 100.0))
@@ -228,6 +338,7 @@ def pico_runner():
             oled.text("Now:", 0, 10)
             oled.text("{:.1f}MHz".format(freq), 40, 10)
         else:
+            _Radioflag=False
             oled.fill_rect(0, 10, oled.width(), 10, 0)
 
 
