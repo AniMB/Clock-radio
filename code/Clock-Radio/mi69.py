@@ -292,7 +292,7 @@ class IdleMode(ModeBase):
             self.idle = True
             self.show_time()
 
-        def handle_refresh(self):
+    def handle_refresh(self):
         if self.selecting_mode:
             # blink arrow
             self._arrow_visible = not self._arrow_visible
@@ -300,12 +300,15 @@ class IdleMode(ModeBase):
         elif self.idle:
             # refresh clock in idle
             self.show_time()
-
             # --- Alarm trigger logic ---
             if self._alarm and self._alarm.enabled and not self._alarm._alarm_ringing:
                 _, _, _, _, h, m, _, _ = rtc.datetime()
-                if h == self._alarm.hour and m == self._alarm.minute:
+                current_minute = (h, m)
+                if (h == self._alarm.hour and m == self._alarm.minute and
+                    self._alarm._last_triggered_minute != current_minute):
+                    self._alarm._last_triggered_minute = current_minute
                     self._alarm.start_ring()
+
 
 
     def show_time(self):
