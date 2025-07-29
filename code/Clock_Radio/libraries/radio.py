@@ -60,7 +60,7 @@ class Radio:
         if ( not isinstance( NewVolume, int )):
             return( False )
         
-        if (( NewVolume < 0 ) or ( NewVolume >= 16 )):
+        if (( NewVolume < 0 ) or ( NewVolume >= 101 )):
             return( False )
 
         self.Volume = NewVolume
