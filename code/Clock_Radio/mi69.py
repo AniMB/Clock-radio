@@ -11,7 +11,7 @@ from config.resources import *
 from web_connectivity.web import WebServer
 from config.resources import _lock
 from network import WLAN, AP_IF
-from libraries.display import oled
+from libraries.display import *
 from libraries.radio import Radio
 
 
@@ -20,6 +20,12 @@ from libraries.radio import Radio
 
 rtc=RTC()
 
+BUTTON_HOLD_MS = 3000       # 3 seconds = stop alarm
+_DEBOUNCE_MS    = 60
+
+_btn_down_ms      = None    # press start timestamp
+_btn_short_req    = False   # set by IRQ, consumed in loop
+_btn_long_req     = False   # set by IRQ, consumed in loop
 
 
 
@@ -175,6 +181,26 @@ _snoozeflag=False
 _alarmflag=False
 _Radioflag=False
 
+def _button_irq(pin):
+    global _btn_down_ms, _btn_short_req, _btn_long_req
+    now = ticks_ms()
+    if pin.value() == 0:  # pressed (falling)
+        # debounce press start
+        if _btn_down_ms is None:
+            _btn_down_ms = now
+    else:  # released (rising)
+        if _btn_down_ms is not None:
+            dur = ticks_diff(now, _btn_down_ms)
+            _btn_down_ms = None
+            if dur >= BUTTON_HOLD_MS:
+                _btn_long_req = True
+            elif dur >= _DEBOUNCE_MS:
+                _btn_short_req = True
+
+# Attach to your existing button pin
+button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=_button_irq, hard=True)
+
+
 
 class Alarm:
     alarm_h=0
@@ -238,7 +264,7 @@ class Alarm:
         self.alarm_hour = value_dict.get("alarm_hour", 0)
         self.alarm_minute = value_dict.get("alarm_minute", 0)
         self.alarm_ampm=value_dict.get("alarm_ampm","AM")
-        self.alarm_enabled = not bool(value_dict.get("cancelalarm", 0))  # ← Add this line
+        self.alarm_enabled = not bool(value_dict.get("cancelAlarm", 0))  # ← Add this line
 
         if not value_dict["use24Hour"]:
             self.alarm_hour,self.alarm_minute=self.to_24h(self.alarm_hour,self.alarm_minute,self.alarm_ampm)
@@ -254,17 +280,22 @@ class Alarm:
         if not self.alarm_enabled :
             return False
 
-        _, _, _, _, h, m, _, _ = rtc.datetime()
+        timestr = value_dict["Time"].strip()
+
+        # Parse time string safely
+        h, m, _= map(int, timestr.split(":"))
         # self.alarm_hour/minute are already in 24h from sync_from_dict()
         return (self.alarm_hour == h) and (self.alarm_minute == m)
         
     def on_snooze(self):
-        _snoozeflag=True
+        global _snoozeflag, _alarmflag
+        
+        _alarmflag,_snoozeflag=True, True
         
         
         self.alarm_minute=Alarm.alarm_m+self.snooze_minutes
         if self.alarm_minute>=60:
-            self.alarm_hour=(self.alarm_hour+self.snooze_minutes)%12
+            self.alarm_hour=(self.alarm_hour+1)%24
         try:
             fm_radio.SetMute(True)
             fm_radio.ProgramRadio()
@@ -273,6 +304,7 @@ class Alarm:
     
     
     def stop_alarm(self):
+        global _snoozeflag, _alarmflag
         _snoozeflag=False
         _alarmflag=False
         try:
@@ -292,31 +324,63 @@ def on_stop():
 
 def _show_volume(vol, mute):
         """Draw a horizontal volume bar at the bottom of the display."""
+        
         bar_h = 5
-        y0 = oled.height() - bar_h
-        oled.fill_rect(0, y0, oled.width(), bar_h, 0)
-        fill_w = 0 if mute else int((vol/ 15) * oled.width())
+        y0 = SCREEN_HEIGHT - bar_h
+        oled.fill_rect(0, y0, SCREEN_WIDTH , bar_h, 0)
+
+        # assume vol is 0..100; clamp
+        try:
+            vol = int(vol)
+        except Exception:
+            vol = 0
+        if vol < 0: vol = 0
+        if vol > 100: vol = 100
+
+        fill_w = 0 if mute else int((vol / 100.0) * SCREEN_WIDTH )
         oled.fill_rect(0, y0, fill_w, bar_h, 1)
-        oled.rect(0, y0, oled.width(), bar_h, 1)
+        oled.rect(0, y0, SCREEN_WIDTH , bar_h, 1)
+
 
 """The main needs to have a time.sleep(0). This is to yield control to the web server.
 This is because the web server runs in a while loop and needs to be able to process requests"""
 def pico_runner():
-    
+    global _snoozeflag, _Radioflag, _alarmflag
+
     # Initialize JSON file if it doesn't exist
     if not handle_json.read_json():
         handle_json.write_json()
     
-    
+    handle_json.read_json()
+    value_dict = handle_json.json_object
+    value_dict[""]
 
     while True:
         handle_json.read_json()
         value_dict = handle_json.json_object
         
+        global _btn_short_req, _btn_long_req
+        if _btn_long_req and _alarmflag:
+            _btn_long_req = False
+            on_stop()  # long press >= 3s -> stop alarm
+        elif _btn_short_req and _alarmflag:
+            _btn_short_req = False
+            alarm.on_snooze()    # short press -> snooze
+        elif _btn_short_req and _Radioflag:
+            _btn_short_req = False
+            _Radioflag=False
+        elif _btn_short_req and not _Radioflag:
+            _btn_short_req = False
+            _Radioflag=True
+
+
+
+
         
         if not _snoozeflag:
             alarm.sync_from_dict(value_dict)
 
+        
         if alarm.is_alarm(value_dict):
             _alarmflag=True
             _Radioflag=False
@@ -326,20 +390,27 @@ def pico_runner():
 
 
 
-        time_str, ampm = increment_and_update_time(value_dict)
-        draw_clock(time_str, ampm)
-        
+        global _update_tick_due
+        if _update_tick_due:
+            _update_tick_due = False
+            time_str, ampm = increment_and_update_time(value_dict)
+            draw_clock(time_str, ampm)
 
         if _Radioflag and not _alarmflag:
-            fm_radio.ProgramRadio()
             idx = max(1, min(3, int(value_dict.get("nowplaying", 1))))
             freq = float(value_dict.get(f"freq{idx}", 100.0))
-            oled.fill_rect(0, 10, oled.width(), 10, 0)
+            if (fm_radio.GetSettings()[0:3]!=(not value_dict["mute"], value_dict["volume"],freq)):
+                fm_radio.SetMute(value_dict["mute"])
+                fm_radio.SetVolume(value_dict["volume"])
+                fm_radio.SetFrequency(freq)
+                fm_radio.ProgramRadio()
+            
+            oled.fill_rect(0, 10, SCREEN_WIDTH , 10, 0)
             oled.text("Now:", 0, 10)
             oled.text("{:.1f}MHz".format(freq), 40, 10)
         else:
             _Radioflag=False
-            oled.fill_rect(0, 10, oled.width(), 10, 0)
+            oled.fill_rect(0, 10, SCREEN_WIDTH , 10, 0)
 
 
 
@@ -364,7 +435,7 @@ def pico_runner():
 
         # Only write JSON if changes were made
         handle_json.write_json()  
-        sleep_ms(1) # Yield control to the web server with reasonable delay
+        sleep_ms(1000) # Yield control to the web server with reasonable delay
         
 
 

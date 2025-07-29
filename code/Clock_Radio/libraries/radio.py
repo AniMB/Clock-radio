@@ -63,7 +63,7 @@ class Radio:
         if (( NewVolume < 0 ) or ( NewVolume >= 101 )):
             return( False )
 
-        self.Volume = NewVolume
+        self.Volume = int((NewVolume/100)*15)
         return( True )
 
 
