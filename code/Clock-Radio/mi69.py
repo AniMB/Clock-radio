@@ -121,6 +121,8 @@ class ModeBase:
         self.last_edge = ticks_ms()
         self._debounce_ms = 50
         self._last_pin_times = {}
+        self._volume_changed = False
+
         for enc in self.encoder_pins:
             enc.irq(trigger=Pin.IRQ_RISING|Pin.IRQ_FALLING,
                     handler=self._on_edge, hard=True)
@@ -145,20 +147,24 @@ class ModeBase:
         self.muted = bool(value_dict.get("mute", 0))
 
     def _on_edge(self, pin):
-    now = ticks_ms()
-    last = self._last_pin_times.get(pin, 0)
-    if ticks_diff(now, last) >= self._debounce_ms:
-        self._last_pin_times[pin] = now
-        self.last_edge = now
-        self.handle_edge(pin)
+        now = ticks_ms()
+        last = self._last_pin_times.get(pin, 0)
+        if ticks_diff(now, last) >= self._debounce_ms:
+            self._last_pin_times[pin] = now
+            self._last_pin_times["encoder"] = now
+            self.last_edge = now
+            self.handle_edge(pin)
+
 
     def _on_button(self, pin):
-    now = ticks_ms()
-    last = self._last_pin_times.get(pin, 0)
-    if ticks_diff(now, last) >= self._debounce_ms:
-        self._last_pin_times[pin] = now
-        self.last_edge = now
-        self.handle_button(pin)
+        now = ticks_ms()
+        last_btn = self._last_pin_times.get("button", 0)
+        last_enc = self._last_pin_times.get("encoder", 0)
+        if ticks_diff(now, last_btn) >= self._debounce_ms and ticks_diff(now, last_enc) > 100:
+            self._last_pin_times["button"] = now
+            self.last_edge = now
+            self.handle_button(pin)
+
 
     def _on_timeout(self, t):
         if ticks_diff(ticks_ms(), self.last_edge) >= self.timeout_ms:
@@ -205,12 +211,8 @@ class ModeBase:
         oled.show()
 
     def _save_volume_state(self):
-        from config.resources import handle_json
-        handle_json.read_json()
-        value_dict = handle_json.json_object
-        value_dict["volume"] = self.volume
-        value_dict["mute"] = int(self.muted)
-        handle_json.write_json()
+        self._volume_changed = True
+
 
 
 
@@ -290,7 +292,7 @@ class IdleMode(ModeBase):
             self.idle = True
             self.show_time()
 
-    def handle_refresh(self):
+        def handle_refresh(self):
         if self.selecting_mode:
             # blink arrow
             self._arrow_visible = not self._arrow_visible
@@ -298,6 +300,13 @@ class IdleMode(ModeBase):
         elif self.idle:
             # refresh clock in idle
             self.show_time()
+
+            # --- Alarm trigger logic ---
+            if self._alarm and self._alarm.enabled and not self._alarm._alarm_ringing:
+                _, _, _, _, h, m, _, _ = rtc.datetime()
+                if h == self._alarm.hour and m == self._alarm.minute:
+                    self._alarm.start_ring()
+
 
     def show_time(self):
         _,_,_,_,h,m,s,_ = rtc.datetime()
@@ -352,17 +361,25 @@ class AlarmMode(ModeBase):
         handle_json.read_json()
         value_dict = handle_json.json_object
         self.snooze_minutes = value_dict.get("snooze", 5)
+        self._last_triggered_minute = None
+
 
     def sync_from_dict(self, value_dict):
         super().sync_from_dict(value_dict)
         self.snooze_minutes = value_dict.get("snooze", 5)
         self.hour = value_dict.get("alarm_hour", 0)
         self.minute = value_dict.get("alarm_minute", 0)
+        self.enabled = bool(value_dict.get("alarm_enabled", 0))  # ← Add this line
 
         # Check alarm time match to trigger alarm
         _, _, _, _, h, m, _, _ = rtc.datetime()
         if self.enabled and h == self.hour and m == self.minute:
-            self.start_ring()
+            if self._last_triggered_minute != m:
+                self._last_triggered_minute = m
+                self.start_ring()
+
+
+
 
     def enter(self):
         _, _, _, _, h, m, _, _ = rtc.datetime()
@@ -390,12 +407,15 @@ class AlarmMode(ModeBase):
             self._stop_ring()
             if duration >= self.timeout_ms:
                 self.enabled = False
-            self._snooze()
+            elif self.enabled:
+                self._snooze()
         elif not self.setting:
             self.enabled = not self.enabled
             self._show_status()
         else:
             self.handle_button_during_setting()
+            self._show_status()
+
 
     def handle_button_during_setting(self):
         if self.stage == 1:
@@ -443,10 +463,17 @@ class AlarmMode(ModeBase):
     def start_ring(self):
         if self._alarm_ringing:
             return
+
+        # Cancel any pending snooze
+        if self._snooze_timer:
+            self._snooze_timer.deinit()
+            self._snooze_timer = None
+
         self._alarm_ringing = True
         self._ring_timer = Timer(-1)
         self._ring_timer.init(period=200, mode=Timer.PERIODIC,
-                              callback=lambda t: self._ring_noise())
+                            callback=lambda t: self._ring_noise())
+
 
     def _ring_noise(self):
         bits = getrandbits(8)
@@ -509,8 +536,9 @@ class ClockMode(ModeBase):
 
     def sync_from_dict(self, value_dict):
         super().sync_from_dict(value_dict)
-        self.hour = value_dict.get("alarm_hour", 0)
-        self.minute = value_dict.get("alarm_minute", 0)
+        self.hour = value_dict.get("clock_hour", 0)
+        self.minute = value_dict.get("clock_minute", 0)
+
 
     def handle_edge(self, pin):
         # only active while setting and for encoder B
@@ -554,13 +582,26 @@ class ClockMode(ModeBase):
         oled.show()
 
     def _finalize(self):
-        # finalize and return to idle
+        # Finalize and return to idle
         self.setting = False
         oled.fill(0)
         oled.show()
-        # set RTC if desired, else just log
+
+        # Set the RTC
+        _, _, _, wd, _, _, _, _ = rtc.datetime()
+        rtc.datetime((2025, 1, 1, wd, self.hour, self.minute, 0, 0))  # Set fixed date, custom time
         print(f"Clock set: {self.hour:02}:{self.minute:02}")
+
+        # Save time to JSON
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        value_dict["clock_hour"] = self.hour
+        value_dict["clock_minute"] = self.minute
+        handle_json.write_json()
+
         idle.handle_timeout()
+
 
     def __repr__(self):
         return f"<ClockMode(hour={self.hour}, minute={self.minute})>"
@@ -591,30 +632,49 @@ class FMMode(ModeBase):
         self._show()
 
     def enter(self):
+        from config.resources import handle_json
+        handle_json.read_json()
+        value_dict = handle_json.json_object
+        nowplaying = value_dict.get("nowplaying", 1)
+        self.freq = value_dict.get(f"freq{nowplaying}", 100.0)
+        self.radio.set_frequency(self.freq)
+
         self.setting = True
         self.last_edge = ticks_ms()
         self._show()
+
 
     def handle_edge(self, pin):
         pass
 
     def handle_button(self, pin):
         if pin == self.button_pin and self.setting:
+            self.cleanup()  # Stop radio
             self.setting = False
-            oled.fill(0); oled.show()
+            oled.fill(0)
+            oled.show()
             idle.handle_timeout()
+
 
     def handle_timeout(self):
         if self.setting:
+            self.cleanup()
             self.setting = False
-            oled.fill(0); oled.show()
+            oled.fill(0)
+            oled.show()
             idle.handle_timeout()
+
 
     def _show(self):
         oled.fill(0)
         oled.text("FM Mode",       0,  0)
         oled.text(f"{self.freq:.1f} MHz", 0, 10)
         oled.show()
+
+    def cleanup(self):
+        """Stop radio playback when leaving FM mode."""
+        self.radio.set_frequency(0.0)  # or use self.radio.mute(True) / self.radio.power_off() if available
+
 
     def __repr__(self):
         _, _, _, _, h, m, s, _ = rtc.datetime()
@@ -643,20 +703,42 @@ def pico_runner():
         value_dict = handle_json.json_object
 
         '''User Code begins here'''
-       # Sync all modes from shared JSON state
+        # Sync all modes from shared JSON state
+        if not idle._volume_changed:
+            idle.volume = value_dict.get("volume", 5)
+            idle.muted = bool(value_dict.get("mute", 0))
+        else:
+            value_dict["volume"] = idle.volume
+            value_dict["mute"] = int(idle.muted)
+            idle._volume_changed = False
+            handle_json.write_json()
+
         idle.is_24h = bool(value_dict.get("use24Hour", 1))
+
+        # Save alarm enable state to JSON if changed
+        if hasattr(alarm_mode, "_prev_enabled"):
+            if alarm_mode.enabled != alarm_mode._prev_enabled:
+                value_dict["alarm_enabled"] = int(alarm_mode.enabled)
+                handle_json.write_json()
+        alarm_mode._prev_enabled = alarm_mode.enabled
+
         alarm_mode.sync_from_dict(value_dict)
         fm_mode.sync_from_dict(value_dict)
 
+        # Trigger alarm at the exact set time
+        if alarm_mode.enabled and not alarm_mode._alarm_ringing:
+            _, _, _, _, h, m, _, _ = rtc.datetime()
+            if h == alarm_mode.hour and m == alarm_mode.minute:
+                alarm_mode.start_ring()
 
 
-
-
-
+        # Ensure current mode gets a refresh call if needed
+        if mode_controller.current_mode:
+            mode_controller.current_mode.handle_refresh()
 
         '''User Code ends here'''
 
-        '''Confused regarding the below code'''
+        '''Confused regarding the below function'''
         #handle_json.write_json()    
 
 
@@ -687,11 +769,6 @@ def main():
     pico_runner()   
     
    
-    
-            
-
-
-
 
 
 if __name__=="__main__":
