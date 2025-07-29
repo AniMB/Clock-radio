@@ -353,7 +353,9 @@ def pico_runner():
     
     handle_json.read_json()
     value_dict = handle_json.json_object
-    value_dict[""]
+    _, _, _, _, h, m, s, _ = rtc.datetime()
+    value_dict["Time"]= f"{h:02}:{m:02}:{s:02}"
+    handle_json.write_json()
 
     while True:
         handle_json.read_json()

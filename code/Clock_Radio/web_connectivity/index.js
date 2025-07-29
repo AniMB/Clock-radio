@@ -1,4 +1,4 @@
-// JavaScript to manage time display, world clocks, and user interactions
+ // JavaScript to manage time display, world clocks, and user interactions
 
 let use24Hour = true;
 let currentTime = "12:00:00";
