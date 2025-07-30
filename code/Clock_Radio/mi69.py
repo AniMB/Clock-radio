@@ -146,6 +146,11 @@ if not handle_json.read_json():
     handle_json.write_json()
 value_dict = handle_json.json_object
 
+_, _, _, _, h, m, s, _ = rtc.datetime()
+value_dict["Time"]=f"{h:02}:{m:02}:{s:02}"
+
+handle_json.write_json()
+
 # clamp nowplaying to 1..3
 _idx = int(value_dict.get("nowplaying", 1))
 if _idx < 1 or _idx > 3:
