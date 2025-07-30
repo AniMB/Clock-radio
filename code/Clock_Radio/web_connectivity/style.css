@@ -1,0 +1,178 @@
+body {
+  font-family: Arial, sans-serif;
+  background-color: #121212;
+  color: #f2f2f2;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+  max-width: 1000px;
+  margin: auto;
+}
+
+h2 {
+  text-align: center;
+  margin: 0;
+  padding: 10px 0;
+  color: #ffffff;
+}
+
+.clock-box,
+.controls-box,
+.right-panel,
+.world-clocks,
+.left-panel,
+.radio,
+.alarm-section
+ {
+  background: #2c2c2c;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.05);
+}
+
+
+.world-clocks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  text-align: center;
+}
+
+.world-clocks div {
+  background: #2c2c2c;
+  padding: 10px;
+  border-radius: 6px;
+  color: #f2f2f2;
+}
+
+.field {
+  margin-bottom: 15px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  color: #ccc;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #2c2c2c;
+  color: #f2f2f2;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+button {
+  padding: 8px 12px;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background-color: #555;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+@media (min-width: 600px) {
+  .container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .clock-box, .controls-box {
+    flex: 1 1 45%;
+    min-width: 300px;
+  }
+
+  .world-clocks {
+    flex: 1 1 100%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    display: grid;
+    grid-template-areas:
+      'header header'
+      'clock controls'
+      'world world';
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  h2 {
+    grid-area: header;
+  }
+
+  .clock-box {
+    grid-area: clock;
+  }
+
+  .controls-box {
+    grid-area: controls;
+  }
+
+  .world-clocks {
+    grid-area: world;
+  }
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.choice-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.choice button {
+  width: 60px;
+  height: 40px;
+  font-size: 16px;
+  background-color: #fe0000;
+  border: 2px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.choice button.active {
+  background-color: #7dda0a;
+  color: white;
+  border-color: #4CAF50;
+}
+
+.right-panel{
+  flex:2
+}
+.left-panel {
+  flex: 1;
+}
