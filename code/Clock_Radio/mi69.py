@@ -468,9 +468,6 @@ def pico_runner():
                 oled.fill_rect(0, 10, SCREEN_WIDTH, 10, 0)
                 _oled_dirty = True
 
-        if _lock.locked():
-            oled.text("locked", 80,30)
-
         # Volume bar
         _show_volume(value_dict["volume"], value_dict["mute"])
 
