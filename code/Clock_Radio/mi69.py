@@ -217,6 +217,7 @@ def _button_irq(pin):
                 _btn_long_req = True
             elif dur >= _DEBOUNCE_MS:
                 _btn_short_req = True
+    
 
 button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=_button_irq, hard=True)
 
@@ -388,12 +389,15 @@ def pico_runner():
         if _btn_long_req and _alarmflag:
             _btn_long_req = False
             on_stop(value_dict)
+            print("button pressed")
         elif _btn_short_req and _alarmflag:
             _btn_short_req = False
             alarm.on_snooze()
+            print("button pressed")
         elif _btn_short_req and _Radioflag:
             _btn_short_req = False
             _Radioflag = False
+            print("button pressed")
             # turn radio OFF (mute)
             fm_radio.SetMute(1)
             fm_radio.ProgramRadio()
@@ -401,6 +405,7 @@ def pico_runner():
         elif _btn_short_req and not _Radioflag:
             _btn_short_req = False
             _Radioflag = True
+            print("button pressed")
             # turn radio ON: tune and unmute immediately
             idx  = max(1, min(3, int(value_dict.get("nowplaying", 1))))
             freq = float(value_dict.get(f"freq{idx}", 100.0))
