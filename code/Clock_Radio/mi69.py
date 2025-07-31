@@ -187,7 +187,7 @@ def _show_volume(vol, mute):
         vol = 0
     if vol > 100:
         vol = 100
-    fill_w = 0 if mute else int((vol / 100.0) * SCREEN_WIDTH)
+    fill_w = 0 if int(mute) else int((vol / 100.0) * SCREEN_WIDTH)
     oled.fill_rect(0, y0, fill_w, bar_h, 1)
     oled.rect(0, y0, SCREEN_WIDTH, bar_h, 1)
     _oled_dirty = True
@@ -217,6 +217,7 @@ def _button_irq(pin):
                 _btn_long_req = True
             elif dur >= _DEBOUNCE_MS:
                 _btn_short_req = True
+    
 
 button.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=_button_irq, hard=True)
 
@@ -228,12 +229,12 @@ class Alarm:
     alarm_m = 0
 
     def __init__(self):
-        pass
+        # remember the last (hour, minute) we triggered in to avoid retrigger spam
+        self._last_triggered_min = None
 
     @staticmethod
     def to_24h(hour: int, minute: int, am_pm: str) -> tuple:
-        hour = int(hour)
-        minute = int(minute)
+        hour = int(hour); minute = int(minute)
         tag = str(am_pm).strip().upper()
         if tag not in ("AM", "PM"):
             raise ValueError("am_pm must be 'AM' or 'PM'")
@@ -247,34 +248,75 @@ class Alarm:
             h24 = 12 if hour == 12 else hour + 12
         return h24, minute
 
-    def sync_from_dict(self, value_dict):
-        self.snooze_minutes = int(value_dict.get("snooze", 5))
-        self.alarm_hour     = int(value_dict.get("alarm_hour", 0))
-        self.alarm_minute   = int(value_dict.get("alarm_minute", 0))
-        ampm = value_dict.get("alarm_ampm", "AM")
+    def _normalize_alarm_from_dict(self, value_dict):
+        """
+        Normalize alarm fields to 24h regardless of display mode.
+        If we have AM/PM and hour looks 12h (1..12), convert.
+        Otherwise assume it's already 24h.
+        """
+        h = int(value_dict.get("alarm_hour", 0))
+        m = int(value_dict.get("alarm_minute", 0))
+        ampm = value_dict.get("alarm_ampm", None)
+
+        # Accept int 0/1 or string AM/PM
         if isinstance(ampm, int):
             ampm = "PM" if ampm else "AM"
-        self.alarm_ampm     = ampm
-        self.alarm_enabled  = not bool(value_dict.get("cancelAlarm", 0))
 
-        if not value_dict.get("use24Hour", 1):
+        if 1 <= h <= 12 and ampm in ("AM", "PM"):
             try:
-                self.alarm_hour, self.alarm_minute = self.to_24h(
-                    self.alarm_hour, self.alarm_minute, self.alarm_ampm
-                )
-            except ValueError:
-                pass
+                h, m = self.to_24h(h, m, ampm)
+            except Exception:
+                pass  # fall back to given values on error
+
+        return h, m
+
+    def sync_from_dict(self, value_dict):
+        self.snooze_minutes = int(value_dict.get("snooze", 5))
+        self.alarm_enabled  = not bool(int(value_dict.get("cancelAlarm", 0)))
+
+        # Normalize alarm to 24h unconditionally when we can infer AM/PM
+        self.alarm_hour, self.alarm_minute = self._normalize_alarm_from_dict(value_dict)
 
         Alarm.alarm_h = self.alarm_hour
         Alarm.alarm_m = self.alarm_minute
+        # do not reset self._last_triggered_min here; it is a per-minute guard
 
-    def is_alarm(self, value_dict):
-        if not self.alarm_enabled or _snoozeflag:
+    def is_alarm(self, value_dict) -> bool:
+        """
+        Returns True exactly once when current (h,m) equals the scheduled alarm time.
+        If we were snoozing, clear the snooze flag at the moment we reach the time.
+        """
+        if not self.alarm_enabled:
             return False
-        h, m, _ = map(int, value_dict["Time"].strip().split(":"))
-        return (self.alarm_hour == h) and (self.alarm_minute == m)
+
+        h, m, _ =  value_dict["Time"].strip().split(":")
+
+        h,m=int(h),int(m)
+        now_min = (int(h),int( m))
+
+        if (self.alarm_hour == h) and (self.alarm_minute == m):
+            # if we were snoozing, it's time to wake up again
+            global _snoozeflag
+            if _snoozeflag:
+                _snoozeflag = False
+
+            # trigger only once per minute
+            if self._last_triggered_min != now_min:
+                self._last_triggered_min = now_min
+                return True
+            else:
+                return False
+        else:
+            # reset guard when minute moves away from the alarm time
+            if self._last_triggered_min == now_min:
+                # still in same minute but not the alarm minute; keep guard
+                pass
+            return False
 
     def on_snooze(self):
+        """
+        Short press: stop ringing and schedule next ring after snooze_minutes.
+        """
         global _snoozeflag, _alarmflag
         if not _alarmflag:
             return
@@ -285,17 +327,26 @@ class Alarm:
             fm_radio.ProgramRadio()
         except Exception:
             pass
-        # schedule next ring from current RTC
-        _, _, _, _, h, m, _, _ = rtc.datetime()
+
+      
+
+        h,m=self.alarm_hour, self.alarm_minute
         total = h * 60 + m + int(self.snooze_minutes)
         self.alarm_hour   = (total // 60) % 24
         self.alarm_minute = total % 60
 
+        # allow a new trigger when snooze time arrives
+        self._last_triggered_min = None
+
     def stop_alarm(self):
+        """
+        Long press: fully stop, disarm, and allow future arming.
+        """
         global _snoozeflag, _alarmflag
         _snoozeflag = False
         _alarmflag  = False
         self.alarm_enabled = False
+        self._last_triggered_min = None
         try:
             fm_radio.SetMute(True)
             fm_radio.ProgramRadio()
@@ -338,28 +389,36 @@ def pico_runner():
         if _btn_long_req and _alarmflag:
             _btn_long_req = False
             on_stop(value_dict)
+            print("button pressed")
         elif _btn_short_req and _alarmflag:
             _btn_short_req = False
             alarm.on_snooze()
+            print("button pressed")
         elif _btn_short_req and _Radioflag:
             _btn_short_req = False
             _Radioflag = False
+            print("button pressed")
+            # turn radio OFF (mute)
+            fm_radio.SetMute(1)
+            fm_radio.ProgramRadio()
+
         elif _btn_short_req and not _Radioflag:
             _btn_short_req = False
             _Radioflag = True
+            print("button pressed")
+            # turn radio ON: tune and unmute immediately
+            idx  = max(1, min(3, int(value_dict.get("nowplaying", 1))))
+            freq = float(value_dict.get(f"freq{idx}", 100.0))
+            fm_radio.SetFrequency(freq)
+            fm_radio.SetVolume(value_dict.get("volume", 50))
+            fm_radio.SetMute(0)
+            fm_radio.ProgramRadio()
+
+
 
         # Sync alarm when not snoozing
         if not _snoozeflag:
             alarm.sync_from_dict(value_dict)
-
-        # Trigger alarm
-        if alarm.is_alarm(value_dict):
-            _alarmflag = True
-            _Radioflag = False
-            fm_radio.SetFrequency(100.1)
-            fm_radio.SetVolume(100)
-            fm_radio.SetMute(0)
-            fm_radio.ProgramRadio()
 
         # 1 Hz clock tick
         if _update_tick_due:
@@ -367,6 +426,17 @@ def pico_runner():
             time_str, ampm = increment_and_update_time(value_dict)
             draw_clock(time_str, ampm)
             _json_dirty = True
+
+        # Trigger alarm (after the latest tick)
+        if alarm.is_alarm(value_dict):
+            _alarmflag = True
+            _Radioflag = False
+            print("alarm triggered")
+            fm_radio.SetFrequency(100.1)
+            fm_radio.SetVolume(100)
+            fm_radio.SetMute(0)
+            fm_radio.ProgramRadio()
+
 
         # Radio UI and tuning only when showing radio and not ringing
         if _Radioflag and not _alarmflag:
@@ -376,7 +446,10 @@ def pico_runner():
             # Only reprogram radio when something actually changed
             need = False
             if int(value_dict.get("mute", 0))   != int(fm_radio.Mute):   need = True
-            if int(value_dict.get("volume", 50))!= int(fm_radio.Volume): need = True
+      
+            desired_hw = (int(value_dict.get("volume", 50)) * 15 + 50) // 100  # rounded
+            if desired_hw != int(fm_radio.Volume):
+                need = True
             if abs(freq - float(fm_radio.Frequency)) > 1e-3:             need = True
 
             if need:
@@ -394,6 +467,9 @@ def pico_runner():
                 _Radioflag = False
                 oled.fill_rect(0, 10, SCREEN_WIDTH, 10, 0)
                 _oled_dirty = True
+
+        if _lock.locked():
+            oled.text("locked", 80,30)
 
         # Volume bar
         _show_volume(value_dict["volume"], value_dict["mute"])

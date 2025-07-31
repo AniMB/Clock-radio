@@ -60,10 +60,11 @@ class Radio:
         if ( not isinstance( NewVolume, int )):
             return( False )
         
-        if (( NewVolume < 0 ) or ( NewVolume >= 101 )):
+        if (( NewVolume < 0 ) or ( NewVolume >= 100)):
             return( False )
 
-        self.Volume = int((NewVolume/100)*15)
+        self.Volume = max(0, min(15, (int(NewVolume) * 15 + 50) // 100))
+
         return( True )
 
 
@@ -117,19 +118,21 @@ class Radio:
 # Configure the settings array with the mute, frequency and volume settings
 #
     def UpdateSettings( self ):
-        
+        self.Settings=bytearray(8)
         if ( self.Mute ):
             self.Settings[0] = 0x80
         else:
             self.Settings[0] = 0xC0
   
         self.Settings[1] = 0x09 | 0x04
-        self.Settings[2:3] = self.ComputeChannelSetting( self.Frequency )
+        self.Settings[2:4] = self.ComputeChannelSetting( self.Frequency )
         self.Settings[3] = self.Settings[3] | 0x10
         self.Settings[4] = 0x04
         self.Settings[5] = 0x00
         self.Settings[6] = 0x84
-        self.Settings[7] = 0x80 + self.Volume
+     
+        self.Settings[7] = 0x80 | (self.Volume & 0x0F) 
+
 
 #        
 # Update the settings array and transmitt it to the radio
