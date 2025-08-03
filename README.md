@@ -1,2 +1,1 @@
-# Clock-radio
-The code forclock-radio for ECE 299
+The code for the particular ECE299 is currently being updated.
