@@ -1,2 +1,1 @@
-# Clock-radio
-The code forclock-radio for ECE 299
+Smart Clock‑Radio marries a classic FM tuner with modern IoT convenience. Powered by a Raspberry Pi Pico W and written entirely in MicroPython, it pairs a precision RTC, vibrant OLED, and tactile hardware controls with a Flask web dashboard accessible from any browser. Tune stations, set alarms, pull network time, and manage volume or favourites from your phone or laptop while real‑time updates appear instantly on the display.
